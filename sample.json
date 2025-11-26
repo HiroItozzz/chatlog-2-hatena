@@ -1,0 +1,24 @@
+{
+  "metadata": {
+    "title": "Claudeのチャット履歴をエクスポートする",
+    "dates": {
+      "created": "11/20/2025 10:25:51",
+      "updated": "11/20/2025 10:31:00",
+      "exported": "11/20/2025 10:38:12"
+    },
+    "link": "https://claude.ai/chat/0ba4e18d-11fc-4710-87a9-b3bf354d99e3",
+    "powered_by": "Claude Exporter (https://www.claudexporter.com)"
+  },
+  "messages": [
+    {
+      "role": "Prompt",
+      "time": "2025/11/20 10:25:53",
+      "say": "ClaudeとのChat履歴をエクスポートする方法を教えてください"
+    },
+    {
+      "role": "Response",
+      "time": "2025/11/20 10:26:10",
+      "say": "Claude.ai でのチャット履歴をエクスポートする方法をお調べします。\n\n\nWeb Search: Claude.ai chat history export method\n\nGitHub - agarwalvishal/claude-chat-exporter: Claude Chat Exporter is a JavaScript tool that allows you to export your conversations with Claude AI into a well-formatted Markdown file. github.com\n\n\nGitHub - ryanschiang/claude-export: Browser script to share and export Anthropic Claude chat logs to Markdown, JSON, or as Image (PNG) github.com\n\n\nHow can I export my Claude data? | Claude Help Center anthropic.com\n\n\nHow to Download a Claude Chat Session promptlayer.com\n\n\nFollow the steps to use Claude Exporter Chrome Extension | Claude Exporter claudexporter.com\n\n\nClaude Export Tool - Chrome Web Store google.com\n\n\nClaude Exporter: Save Claude as PDF, MD and more - Chrome Web Store google.com\n\n\nClaude Exporter - Efficient Conversation Extraction Tool | Creati.ai creati.ai\n\n\nClaude Exporter - Save Claude as PDF, MD and more claudexporter.com\n\n\nHow can I export my Claude data? | Anthropic Privacy Center anthropic.com\n\nClaude.aiのチャット履歴をエクスポートする方法は、主に2つあります。\n\n\n公式のエクスポート機能\n\n\n個人ユーザーとTeamプランのPrimary Ownerは、WebアプリまたはClaude Desktopの「設定」>「プライバシー」からユーザー情報とチャット履歴をエクスポートできます（iOS・Androidアプリからは不可）。\n\n\n手順:\n\n\nアカウント画面左下のイニシャルをクリック\n\n「Settings（設定）」を選択\n\n「Privacy（プライバシー）」セクションに移動\n\n「Export data（データをエクスポート）」ボタンをクリック\n\n\nエクスポートが処理されると、ダウンロードリンクがメールで送信されます。ダウンロードリンクは配信から24時間後に期限切れになります。\n\n\nブラウザ拡張機能を使用\n\n\n個別の会話を手軽にエクスポートしたい場合は、Chrome拡張機能が便利です。\n\n\n主な拡張機能:\n\n\nClaude Exporter: PDF、Markdown、テキスト、CSV、JSON、画像など複数の形式に対応\n\nClaude Export Tool: TXT、MD、CSV、JSON、HTMLファイルとして保存可能\n\n\nこれらの拡張機能を使えば、会話ページから直接、必要な部分だけを選択してエクスポートできます。\n\n\nどちらの方法もニーズに応じて選択できますが、全履歴が必要な場合は公式機能、個別の会話を手軽に保存したい場合は拡張機能がおすすめです。"
+    }
+  ]
+}
