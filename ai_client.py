@@ -16,7 +16,7 @@ DEBUG = config['other']['debug'].lower() in ("true", "1", "t")
 
 API_KEY = os.getenv('GEMINI_API_KEY', "").strip()
 
-CUSTOM_PROMPT = config['ai']['prompt']
+PROMPT = config['ai']['prompt']
 MODEL = config['ai']['model']
 LEVEL = config['ai']['thoughts_level']
 
@@ -26,8 +26,7 @@ TEXT = ""
 def summary_from_gemini(text: str, api_key: str,  model: str = "gemini-2.5-flash", thoughts_level: int = 0, prompt: str = "please summarize the following conversation for a blog article. Keep it under 200 words: ") -> list[str, int, int]:
 
     # The client gets the API key from the environment variable `GEMINI_API_KEY`.
-    client = genai.Client(API_KEY)
-
+    client = genai.Client(api_key=API_KEY)
 
     # Turn off thinking:
     # thinking_config=types.ThinkingConfig(thinking_budget=0)
@@ -48,8 +47,8 @@ def summary_from_gemini(text: str, api_key: str,  model: str = "gemini-2.5-flash
         else f"thoughts limit: {thoughts_level}"
     )
 
-    print(f"Got your summary from AI: {response.text}")
-    print("Input tokens:", input_token, "Thoughts level:", message)
-    print("Output tokens:", output_token)
+    if DEBUG:
+        print(f"Got your summary from AI: {response.text[:100]}")
+        print(f"Input tokens: {input_token}, Thoughts level: {message} \nOutput tokens:, {output_token}")
 
     return [response.text, input_token, output_token]

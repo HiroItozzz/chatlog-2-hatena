@@ -1,6 +1,6 @@
 # AI設定。
 ai:
-  prompt: "以下の一日の対話型AIとのやり取りの内容をプログラミングの学習記録としてブログに上げようと思います。日本語で要約し、500字以内で記事化してください。"
+  prompt: "以下の一日の対話型AIとのやり取りの内容をプログラミングの個人用学習記録としてブログに上げようと思います。日本語で要約し、500字以内で記事化してください。タイトルもつけてください。："
   model: "gemini-2.5-flash"
   thoughts_level: 0 # 0 for thoghtless, -1 for dynamic thoughts (think thoughts level itself), 1-24576 to set thoughts limit
 
