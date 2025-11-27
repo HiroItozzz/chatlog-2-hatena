@@ -2,6 +2,7 @@ venv/
 __pycache__/
 *.pyc
 .env
-*.json
 requirements.ini
 requirements-dev.ini
+sample/
+outputs/

@@ -2,18 +2,21 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 import json
-from datetime import datetime as dt
-from datetime import timedelta as td
+from datetime import datetime, timedelta 
 
 
-sample = "sample.json"
-PATH = Path('.') / sample
-
-AI_LIST = ["Claude", "ChatGPT", "Deepseek", "Gemini", "Grok"]
-
+load_dotenv()
 DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
 
 
+AI_LIST = ["Claude", "ChatGPT", "Deepseek", "Gemini", "Grok"]
+
+
+### 自動取得に変更予定 ###
+INPUT_DIR = ""
+
+INPUT_PATH = Path(r"E:\Dev\Projects\chatbot-logger\sample\Claude-ターミナルのグラフィックスドライバー問題 (1).json")
+####################
 
 
 def json_formatter(data: dict) -> list:
@@ -22,8 +25,8 @@ def json_formatter(data: dict) -> list:
     dates_meta = data["metadata"]["dates"]
     format_meta = '%m/%d/%Y %H:%M:%S'
 
-    created_datetime = dt.strptime((dates_meta.get("created")), format_meta)    # start time of the chat
-    updated_datetime = dt.strptime((dates_meta.get("updated")), format_meta)    # updated time of the chat
+    created_datetime = datetime.strptime((dates_meta.get("created")), format_meta)    # start time of the chat
+    updated_datetime = datetime.strptime((dates_meta.get("updated")), format_meta)    # updated time of the chat
 
     ai_name = "Unknown AI"
     for name in AI_LIST:
@@ -34,13 +37,14 @@ def json_formatter(data: dict) -> list:
     latest_datetime = created_datetime
 
     for message in data["messages"]:
-        text_datetime = dt.strptime(message.get("time"), '%Y/%m/%d %H:%M:%S')
+        timestamp = message.get("time")
+        text_datetime = datetime.strptime(timestamp, '%Y/%m/%d %H:%M:%S')
         time_diff = text_datetime - latest_datetime
 
         # Skip messages from previous days unless more than an hour has passed
         if not DEBUG:
             if text_datetime.date() != latest_datetime.date():   
-                if time_diff.seconds // 3600 > 1:
+                if time_diff > timedelta(hours=1):
                     latest_datetime = text_datetime
                     continue
 
@@ -51,20 +55,28 @@ def json_formatter(data: dict) -> list:
         else:
             agent = message.get("role")
             if DEBUG:
-                print(f"Detected agent other than You and {ai_name}: {agent}")
-        
-        text_time = text_datetime.strftime('%H:%M:%S')
+                print(f"Detected agent other than You and {ai_name}: {agent}")        
+
         text = message.get("say")
 
-        logs.append(f"{text_time} 'agent': {agent}\n 'text': {text}\n)")
+        logs.append(f"{timestamp} \nagent: {agent}\n {text} \n\n {'-' * 50}\n")
 
         latest_datetime = text_datetime
 
     return logs
 
 if __name__ == "__main__":
-    with open (PATH, encoding="utf-8") as f:
+    with open (INPUT_PATH, encoding="utf-8") as f:
         raw_data = json.load(f)
 
     output_texts = "\n".join(json_formatter(raw_data))
-    print(output_texts)
+
+    output_dir = Path(os.getenv('OUTPUT_DIR').strip())
+    output_dir.mkdir(exist_ok=True)
+    output_path = output_dir / (INPUT_PATH.stem + '.txt')
+
+    output_path.write_text(output_texts, encoding="utf-8")
+        
+    if DEBUG:
+        print(output_texts)
+        exit()
