@@ -9,13 +9,13 @@ load_dotenv()
 DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
 
 
-AI_LIST = ["Claude", "ChatGPT", "Deepseek", "Gemini", "Grok"]
+AI_LIST = ["Claude", "Deepseek", "ChatGPT", "Gemini", "Grok"]
 
 
 ### 自動取得に変更予定 ###
 INPUT_DIR = ""
 
-INPUT_PATH = Path(r"E:\Dev\Projects\chatbot-logger\sample\Claude-ターミナルのグラフィックスドライバー問題 (1).json")
+INPUT_PATH = Path(r"E:\Dev\Projects\chatbot-logger\sample\Claude-Git LF!CRLF line ending issues across platforms (1).json")
 ####################
 
 
