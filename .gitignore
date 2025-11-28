@@ -7,4 +7,3 @@ requirements-dev.ini
 sample/
 outputs/
 *.csv
-test_oauth.pyc

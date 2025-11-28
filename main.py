@@ -9,7 +9,7 @@ from google import genai
 from google.genai import types
 import yfinance as yf
 
-from loader import json_formatter
+from uploader import json_formatter
 from ai_client import summary_from_gemini, Gemini_fee
 
 

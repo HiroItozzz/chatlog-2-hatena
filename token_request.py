@@ -31,13 +31,10 @@ BASE_URL = "https://www.hatena.ne.jp/oauth/authorize"
 
 # 人間の手によるOAuth認証（よくあるやつ）
 authorization_url = oauth.authorization_url(BASE_URL)
-print(
-    f"Please go here and authorize, {authorization_url}"
-)  # リダイレクトに相当する箇所
+print(f"Please go here and authorize, {authorization_url}") # リダイレクトに相当する箇所
 
-verifier = input(
-    "Please input oauth_verifier here:"
-)  # 画面に表示されたコードを入力し自分のアカウントへのアクセスを許可する
+verifier = input("Please input oauth_verifier here:")  # 画面に表示されたコードを入力し自分のアカウントへのアクセスを許可する
+
 
 
 ACCESS_TOKEN_URL = "https://www.hatena.com/oauth/token"
