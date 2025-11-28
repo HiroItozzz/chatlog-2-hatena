@@ -63,10 +63,6 @@ mypy-extensions==1.1.0
     # via
     #   black
     #   mypy
-numpy==2.3.5
-    # via
-    #   pandas
-    #   yfinance
 packaging==25.0
     # via black
 pandas==2.3.3
@@ -107,26 +103,6 @@ python-dotenv==1.2.1
     # via -r requirements.ini
 pytokens==0.3.0
     # via black
-pytz==2025.2
-    # via
-    #   pandas
-    #   yfinance
-pyyaml==6.0.3
-    # via -r requirements.ini
-requests==2.32.5
-    # via
-    #   google-genai
-    #   yfinance
-rsa==4.9.1
-    # via google-auth
-six==1.17.0
-    # via python-dateutil
-sniffio==1.3.1
-    # via anyio
-soupsieve==2.8
-    # via beautifulsoup4
-tenacity==9.1.2
-    # via google-genai
 typing-extensions==4.15.0
     # via
     #   beautifulsoup4
