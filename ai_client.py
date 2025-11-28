@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import time
 from dotenv import load_dotenv
 import yaml
 from google import genai
@@ -32,13 +33,25 @@ def summary_from_gemini(text: str, api_key: str,  model: str = "gemini-2.5-flash
     # thinking_config=types.ThinkingConfig(thinking_budget=0)
     # Turn on dynamic thinking:
     # thinking_config=types.ThinkingConfig(thinking_budget=-1)
-    response = client.models.generate_content(
-        model="gemini-2.5-flash", contents=f"{prompt}\n\n{text}",
-        config=types.GenerateContentConfig(
-            thinking_config=types.ThinkingConfig(thinking_budget=thoughts_level) # disables dynamic thinking for default
-            )
-        )
     
+    max_retries = 3
+    for i in range(max_retries):        
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-flash", contents=f"{prompt}\n\n{text}",
+                config=types.GenerateContentConfig(
+                    thinking_config=types.ThinkingConfig(thinking_budget=thoughts_level) # disables dynamic thinking for default
+                    )
+                )
+            break
+        except Exception as e:
+            if '503' in str(e) and i < max_retries - 1:
+                print(f"Server seems to be busy. Retry {5 * (i+1)} seconds later.")
+                time.sleep(5 * (i+1))  # 5秒、10秒、15秒と待つ
+            else:
+                raise
+    
+
     input_token = response.usage_metadata.thoughts_token_count
     output_token = response.usage_metadata.candidates_token_count
     message = (
@@ -51,4 +64,4 @@ def summary_from_gemini(text: str, api_key: str,  model: str = "gemini-2.5-flash
         print(f"Got your summary from AI: {response.text[:100]}")
         print(f"Input tokens: {input_token}, Thoughts level: {message} \nOutput tokens:, {output_token}")
 
-    return [response.text, input_token, output_token]
+    return response.text, input_token, output_token

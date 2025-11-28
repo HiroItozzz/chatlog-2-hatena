@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import json, csv
+import time
 from datetime import datetime, timedelta 
 from dotenv import load_dotenv
 import yaml
@@ -28,8 +29,9 @@ DEBUG = config['other']['debug'].lower() in ("true", "1", "t")
 
 def append_csv(path: Path, row: list):
     """CSVに1行追記"""
-    with path.open('a', encoding='utf-8-sig') as f:
-        f.write(','.join(str(x) for x in row) + '\n')
+    with path.open('a', newline='', encoding='utf-8-sig') as f:
+        writer = csv.writer(f)
+        writer.writerow(row)
 
 
 if __name__ == "__main__":
@@ -47,19 +49,19 @@ if __name__ == "__main__":
 
     if DEBUG:
         print(base_text)
-        exit()
 
     summary, input_token, output_token = summary_from_gemini(text=base_text, api_key=API_KEY, prompt=PROMPT, model=MODEL, thoughts_level=LEVEL)
 
-    record = [PROMPT, base_text, summary, MODEL, LEVEL, input_token, output_token]
+    record = [PROMPT, INPUT_PATH.name, summary, MODEL, LEVEL, input_token, output_token]
 
     output_dir = Path(config['paths']['output_dir'].strip())
     output_dir.mkdir(exist_ok=True)
     summary_path = output_dir / (f'summary_{INPUT_PATH.stem}.txt')
-    csv_path = output_dir / Path('record.csv')
+    csv_path = output_dir / 'record.csv'
 
     if not csv_path.exists():
-        csv_path.write_text('prompt,base_text,output_text,model,thinking_budget,input_token,output_token\n', encoding='utf-8-sig')
+        columns = 'prompt,base_text,output_text,model,thinking_budget,input_token,output_token\n'
+        csv_path.write_text(columns, encoding='utf-8-sig')
 
     append_csv(csv_path, record)
     

@@ -81,5 +81,5 @@ if __name__ == "__main__":
     output_path.write_text(output_texts, encoding="utf-8")
         
     if DEBUG:
-        print(output_texts)
+        print(f"output_text loaded!!: {output_texts[:50]}")
         exit()
