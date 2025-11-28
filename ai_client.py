@@ -8,7 +8,7 @@ from google.genai import types
 
 
 
-load_dotenv()
+load_dotenv(override=True)
 config_path = Path('config.yaml')
 config = yaml.safe_load(config_path.read_text(encoding='utf-8'))
 
@@ -47,19 +47,21 @@ class Gemini_fee:
         if model == 'gemini-2.5-pro':
             base_fees = self.fees['gemini-2.5-pro']
             if tokens <= 200000:
-                return tokens * base_fees['under 0.2M'][token_type]
+                return tokens * base_fees['under 0.2M'][token_type] / 1000000
             else:
-                return tokens * base_fees['over 0.2M'][token_type]
-
+                return tokens * base_fees['over 0.2M'][token_type] / 1000000
         else:
-            return tokens * self.fees[model][token_type]
+            return tokens * self.fees[model][token_type] / 1000000
 
 
 
-def summary_from_gemini(conversation: str, api_key: str,  model: str = "gemini-2.5-flash", thoughts_level: int = 0, custom_prompt: str = "please summarize the following conversation for a blog article. Keep it under 200 words: ") -> list[str, int, int]:
+def summary_from_gemini(conversation: str, api_key: str,  model: str = "gemini-2.5-pro", thoughts_level: int = 0, custom_prompt: str = "please summarize the following conversation for a blog article. Keep it under 200 words: ") -> list[str, int, int]:
 
+    if DEBUG:
+        print(f"Gemini using API_KEY now: '...{api_key[-5:]}'")
+    
     # The client gets the API key from the environment variable `GEMINI_API_KEY` automatically.
-    client = genai.Client(api_key)
+    client = genai.Client(api_key=api_key)
 
     # Turn off thinking:
     # thinking_config=types.ThinkingConfig(thinking_budget=0)
@@ -83,20 +85,30 @@ def summary_from_gemini(conversation: str, api_key: str,  model: str = "gemini-2
             else:
                 raise
     
+
     message = (
         "static thinking" if thoughts_level == 0 
         else "dynamic thinking" if thoughts_level == -1 
         else f"thoughts limit: {thoughts_level}"
     )
 
-    input_tokens = response.usage_metadata.thoughts_token_count
+    input_tokens = response.usage_metadata.prompt_token_count
+    thoughts_tokens= response.usage_metadata.thoughts_token_count
     output_tokens = response.usage_metadata.candidates_token_count
 
-    input_fee = Gemini_fee().calculate(model,token_type="input", tokens=input_tokens)
-    output_fee = Gemini_fee().calculate(model, "output", output_tokens)
-
     if DEBUG:
-        print(f"Got your summary from AI: {response.text[:100]}")
-        print(f"Input tokens: {input_tokens},fee: {input_fee},  Output tokens:, {output_tokens}, fee: {output_fee}\nThoughts level: {message} ")
+        total_output_tokens = thoughts_tokens + output_tokens
+        input_fee = Gemini_fee().calculate(model,token_type="input", tokens=input_tokens)
+        thoughts_fee = Gemini_fee().calculate(model, "output", thoughts_tokens)
+        output_fee = Gemini_fee().calculate(model, "output", output_tokens)
+        total_output_fee = thoughts_fee + output_fee        
 
-    return response.text, input_tokens, output_tokens
+        print(f"Got your summary from AI: {response.text[:100]}")
+        print(f"Input tokens: {input_tokens},fee: {input_fee}\n \
+              Thoughts tokens: {thoughts_tokens}, fee: {thoughts_fee}\n \
+                Output_tokens: {output_tokens}, fee: {output_fee}\n \
+              Total ouput tokens: {total_output_tokens}, fee: {total_output_fee}\n \
+              Total fee: {input_fee + total_output_fee}\n \
+                Thoughts level: {message} ")
+
+    return response.text, input_tokens, thoughts_tokens, output_tokens

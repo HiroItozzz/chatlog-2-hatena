@@ -6,3 +6,4 @@ requirements.ini
 requirements-dev.ini
 sample/
 outputs/
+*.csv
