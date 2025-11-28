@@ -67,6 +67,8 @@ numpy==2.3.5
     # via
     #   pandas
     #   yfinance
+oauthlib==3.3.1
+    # via requests-oauthlib
 packaging==25.0
     # via black
 pandas==2.3.3
@@ -116,7 +118,10 @@ pyyaml==6.0.3
 requests==2.32.5
     # via
     #   google-genai
+    #   requests-oauthlib
     #   yfinance
+requests-oauthlib==2.0.0
+    # via -r requirements.ini
 rsa==4.9.1
     # via google-auth
 six==1.17.0
