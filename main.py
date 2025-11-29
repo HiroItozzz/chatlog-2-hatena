@@ -11,18 +11,71 @@ from ai_client import Gemini_fee, summary_from_gemini
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-from uploader import json_formatter
+from json_loader import json_formatter
 
-load_dotenv(override=True)
-config_path = Path("config.yaml")
-config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
 
-### .env, config.yamlで基本設定 ###
-API_KEY = os.getenv("GEMINI_API_KEY", None).strip()
-PROMPT = config["ai"]["prompt"]
-MODEL = config["ai"]["model"]
-LEVEL = config["ai"]["thoughts_level"]
-DEBUG = config["other"]["debug"].lower() in ("true", "1", "t")
+###### by Claude code #######
+def get_nested_config(config_dict, key_path):
+    """ネストした設定値を取得 (例: 'ai.model' -> config['ai']['model'])"""
+    keys = key_path.split(".")
+    value = config_dict
+    try:
+        for key in keys:
+            value = value[key]
+        return value
+    except (KeyError, TypeError):
+        return None
+
+
+def validate_config(config_dict, api_key):
+    """設定ファイルとAPIキーの妥当性を検証"""
+    required_keys = ["ai.model", "ai.prompt", "paths.output_dir", "other.debug"]
+
+    # 必須キーの存在確認
+    for key in required_keys:
+        if get_nested_config(config_dict, key) is None:
+            raise ValueError(f"Missing required config: {key}")
+
+    # API_KEYの検証
+    if not api_key or len(api_key.strip()) == 0:
+        raise ValueError("GEMINI_API_KEY is required in environment variables")
+
+    # thoughts_levelの範囲チェック
+    thoughts_level = get_nested_config(config_dict, "ai.thoughts_level")
+    if thoughts_level is not None and not (-1 <= thoughts_level <= 24576):
+        raise ValueError("ai.thoughts_level must be between -1 and 24576")
+
+
+def initialize_config():
+    """設定の初期化と検証"""
+    load_dotenv(override=True)
+    config_path = Path("config.yaml")
+
+    # 設定ファイルの読み込みとエラーハンドリング
+    try:
+        if not config_path.exists():
+            raise FileNotFoundError(f"Config file not found: {config_path}")
+        config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+        if config is None:
+            raise ValueError("Config file is empty or invalid YAML")
+    except yaml.YAMLError as e:
+        raise ValueError(f"Invalid YAML syntax in config file: {e}")
+
+    ### .env, config.yamlで基本設定 ###
+    api_key_raw = os.getenv("GEMINI_API_KEY")
+    API_KEY = api_key_raw.strip() if api_key_raw else None
+
+    # 設定の検証
+    validate_config(config, API_KEY)
+
+    PROMPT = config["ai"]["prompt"]
+    MODEL = config["ai"]["model"]
+    LEVEL = config["ai"]["thoughts_level"]
+    DEBUG = config["other"]["debug"].lower() in ("true", "1", "t")
+    
+    return config, API_KEY, PROMPT, MODEL, LEVEL, DEBUG
+
+#####################################
 
 
 def append_csv(path: Path, columns, row: list):
@@ -38,6 +91,9 @@ def append_csv(path: Path, columns, row: list):
 
 
 if __name__ == "__main__":
+    # 設定初期化
+    config, API_KEY, PROMPT, MODEL, LEVEL, DEBUG = initialize_config()
+    
     ### loader.pyで自動取得に変更予定 ###
     INPUT_DIR = ""
 

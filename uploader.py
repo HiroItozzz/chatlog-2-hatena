@@ -69,7 +69,6 @@ def xml_unparser(
         ET.SubElement(ROOT, "category", attrib={"term": cat})
 
     TITLE.text = title
-
     UPDATED.text = updated.isoformat()  # timezoneありの場合それに従う
     NAME.text = author
     CONTENT.text = content
@@ -99,10 +98,16 @@ def uploader(entry_xml: str = None) -> dict:
         resource_owner_key=ACCESS_TOKEN,
         resource_owner_secret=ACCESS_TOKEN_SECRET,
     )
-
     response = oauth.post(
         URL, data=entry_xml, headers={"Content-Type": "application/xml; charset=utf-8"}
     )
+
+    if DEBUG:
+        print(f"Status: {response.status_code}")
+        if response.status_code == 201:
+            print("✓ 投稿成功")
+        else:
+            print(f"✗ エラー: {response.text}")
 
     return xmltodict.parse(response.text)["entry"]  # 辞書型で出力
 
