@@ -11,7 +11,7 @@ from json_loader import json_loader
 from uploader import hatena_uploader, xml_unparser
 
 
-###### by Claude code #######
+
 def get_nested_config(config_dict, key_path):
     """ネストした設定値を取得 (例: 'ai.model' -> config['ai']['model'])"""
     keys = key_path.split(".")
@@ -76,8 +76,6 @@ def initialize_config():
 
     return config, API_KEY, PROMPT, MODEL, LEVEL, DEBUG
 
-
-#####################################
 
 
 def append_csv(path: Path, columns, row: list):
