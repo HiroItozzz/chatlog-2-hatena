@@ -11,7 +11,7 @@ from ai_client import Gemini_fee, summary_from_gemini
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-from json_loader import json_formatter
+from json_loader import json_loader
 
 
 ###### by Claude code #######
@@ -41,9 +41,13 @@ def validate_config(config_dict, api_key):
         raise ValueError("GEMINI_API_KEY is required in environment variables")
 
     # thoughts_levelの範囲チェック
-    thoughts_level = get_nested_config(config_dict, "ai.thoughts_level")
+    thoughts_level = config_dict["ai"]["thoughts_level"]
     if thoughts_level is not None and not (-1 <= thoughts_level <= 24576):
         raise ValueError("ai.thoughts_level must be between -1 and 24576")
+    elif (0 <= thoughts_level < 128) and config_dict["ai"]["model"] == "gemini-2.5-pro":
+        raise ValueError(
+            "ai.thoughts_level must be between 128 and 24576 or -1 forgemini-2.5-pro "
+        )
 
 
 def initialize_config():
@@ -72,8 +76,9 @@ def initialize_config():
     MODEL = config["ai"]["model"]
     LEVEL = config["ai"]["thoughts_level"]
     DEBUG = config["other"]["debug"].lower() in ("true", "1", "t")
-    
+
     return config, API_KEY, PROMPT, MODEL, LEVEL, DEBUG
+
 
 #####################################
 
@@ -93,7 +98,7 @@ def append_csv(path: Path, columns, row: list):
 if __name__ == "__main__":
     # 設定初期化
     config, API_KEY, PROMPT, MODEL, LEVEL, DEBUG = initialize_config()
-    
+
     ### loader.pyで自動取得に変更予定 ###
     INPUT_DIR = ""
 
@@ -107,7 +112,7 @@ if __name__ == "__main__":
     ai_name = next((p for p in AI_LIST if INPUT_PATH.name.startswith(p)), "Unknown AI")
 
     raw_data = INPUT_PATH.read_text(encoding="utf-8")
-    conversation = "\n".join(json_formatter(raw_data, ai_name))
+    conversation = "\n".join(json_loader(raw_data, ai_name))
 
     GEMINI_ATTRS = {
         "conversation": conversation,
@@ -118,7 +123,7 @@ if __name__ == "__main__":
     }
 
     if DEBUG:
-        print(f"Your API Key: ...{API_KEY[-10:]} for {MODEL}")
+        print(f"Your API Key: ...{API_KEY[-5:]} for {MODEL}")
 
     # GoogleへAPIリクエスト
     summary, input_tokens, thoughts_tokens, output_tokens = summary_from_gemini(

@@ -20,7 +20,7 @@ INPUT_PATH = Path(
 ####################
 
 
-def json_formatter(raw_data: str, ai_name: str) -> list:
+def json_loader(raw_data: str, ai_name: str) -> list:
     logs = []
 
     data = json.loads(raw_data)
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     with open(INPUT_PATH, encoding="utf-8") as f:
         raw_data = json.load(f)
 
-    output_texts = "\n".join(json_formatter(raw_data))
+    output_texts = "\n".join(json_loader(raw_data))
 
     output_dir = Path(os.getenv("OUTPUT_DIR").strip())
     output_dir.mkdir(exist_ok=True)

@@ -1,11 +1,13 @@
 import os
-from pathlib import Path
 import time
-from dotenv import load_dotenv
+from pathlib import Path
+from typing import List, Optional
+
 import yaml
+from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-
+from pydantic import BaseModel, Field
 
 load_dotenv(override=True)
 config_path = Path("config.yaml")
@@ -69,9 +71,7 @@ def summary_from_gemini(
                 model="gemini-2.5-flash",
                 contents=f"{custom_prompt}\n\n{conversation}",
                 config=types.GenerateContentConfig(
-                    thinking_config=types.ThinkingConfig(
-                        thinking_budget=thoughts_level
-                    ) 
+                    thinking_config=types.ThinkingConfig(thinking_budget=thoughts_level)
                 ),
             )
             break

@@ -1,9 +1,20 @@
 # AI設定。
 ai:
-  prompt: "以下の対話型AIとのやり取りによって私が学んだ内容を、プログラミングの学習記録として個人用ブログに上げようと思います。箇条書きを使いながら日本語で1000字以内でまとめてください。タイトルもください。返事はいりません。："
+  prompt: |
+    以下は対話型AIとのやり取りです。この会話から学んだことを、個人ブログ用の学習記録として整理してください。
+
+    要件：
+    - タイトル：具体的で分かりやすく
+    - 本文：Markdown形式、1000字以内
+    - 口調：「です・ます」調だけど硬すぎない、自然な感じ
+    - 構成：学んだポイントを箇条書きでまとめつつ、実際に試したことや気づきも入れる
+    - 読者：未来の自分（復習用）
+
+    会話ログ：
   model: "gemini-2.5-pro"
   thoughts_level: -1 # -1 for dynamic thoughts (think thoughts level itself), 1-24576 to set thoughts limit, 0 for thoghtless( for gemini-2.5-flash only)
 
+# ディレクトリ指定
 paths:
   input_dir: "sample"
   output_dir: "outputs"
