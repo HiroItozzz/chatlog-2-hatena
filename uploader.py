@@ -96,6 +96,12 @@ def hatena_uploader(entry_xml: str = None) -> dict:
     # 名前空間マップ
     ns = {"atom": "http://www.w3.org/2005/Atom", "app": "http://www.w3.org/2007/app"}
 
+    categories = []
+    for category_elem in root.findall("atom:category", ns):
+        term = category_elem.get("term")
+        if term:
+            categories.append(term)
+
     response_dict = {
         # Atom名前空間の要素
         "title": root.find("{http://www.w3.org/2005/Atom}title").text,
@@ -104,8 +110,9 @@ def hatena_uploader(entry_xml: str = None) -> dict:
         "time": datetime.fromisoformat(root.find("atom:updated", ns).text),
         "link_edit": root.find("atom:link[@rel='edit']", ns).get("href"),
         "link_alternate": root.find("atom:link[@rel='alternate']", ns).get("href"),
+        "categories": categories,
         # app名前空間の要素
-        "is_draft": root.find("app:control/app:draft", ns).text == "yes",
+        "is_draft": root.find("app:control/app:draft", ns).text == "yes"
     }
     return response_dict
 

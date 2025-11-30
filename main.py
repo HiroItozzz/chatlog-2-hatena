@@ -168,23 +168,23 @@ if __name__ == "__main__":
         xml_data = uploader.xml_unparser(
             title=blog_parts.title,
             content=blog_parts.content,
-            categories=blog_parts.categories + ["自動投稿", "python", "AtomPub"],
+            categories=blog_parts.categories + ["自動投稿", "AtomPub"],
             author=blog_parts.author,
             updated=blog_parts.updated,
         )
 
         result_dict = uploader.hatena_uploader(xml_data)  # 辞書型で返却
-        is_draft = result_dict.get("app:control").get("app:draft") == "yes"
-        entry_url = ""
-        entry_title = (blog_parts.title,)
-        entry_content = (blog_parts.content[:20],)
+        entry_url = result_dict.get("link_alternate", "")
+        entry_title = result_dict.get("title", "")
+        entry_content = result_dict.get("content", "")
+        categories = result_dict.get("categories", [])
 
         logger.info(f"はてなブログへの投稿に成功しました。")
         logger.info(f"URL: {entry_url}")
         logger.info("-" * 50)
-        logger.info(f"投稿タイトル：{result_dict["title"]}")
+        logger.info(f"投稿タイトル：{entry_title}")
         logger.info(f"\n{"-" * 20}投稿本文{"-" * 20}")
-        logger.info(f"{result_dict["content"]["#text"][:100]}")
+        logger.info(f"{entry_content[:100]}")
         logger.info("-" * 50)
 
         i_tokens = stats["input_tokens"]
@@ -215,6 +215,7 @@ if __name__ == "__main__":
             "is_draft",
             "entry_title",
             "entry_content",
+            "categories",
             "custom_prompt",
             "model",
             "thinking_budget",
@@ -235,9 +236,10 @@ if __name__ == "__main__":
             INPUT_PATH.name,
             ai_name,
             entry_url,
-            is_draft,
+            result_dict.get("is_draft"),
             entry_title,
-            entry_content[:20],
+            entry_content[:30],
+            ",".join(categories),
             PROMPT,
             MODEL,
             LEVEL,
