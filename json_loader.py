@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -6,7 +7,7 @@ import yaml
 from dotenv import load_dotenv
 
 config = yaml.safe_load(Path("config.yaml").read_text(encoding="utf-8"))
-DEBUG = config["other"]["debug"].lower() in ("true", "1", "t")
+DEBUG = os.getenv("DEBUG", "").lower() in ("true", "1", "t")
 
 
 def json_loader(path: Path) -> str:

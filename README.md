@@ -2,30 +2,34 @@
 
 **🚧 開発中のプロジェクト 🚧**
 
-AIチャットボットとの対話ログを分析し、学習記録としてブログ投稿するツール。
-Claude. ChatGPT, Geminiからchrome下記拡張機能でエクスポートしたjsonに対応
-現在はjsonのパスを入力→要約→ブログ投稿まで自動化しています。
+対話形AIとのログをAIが分析し、学習記録としてはてなブログへ投稿するツール。
 
+## 基本的な使い方
+- 下記Chrome拡張機能で2クリックでjsonファイルをDL
+- jsonファイルをショートカットへドラッグアンドドロップ
+- その日に行われた一連の会話だけをプログラムが抽出（Claudeログの場合）
+- 会話をGemini 2.5 proが自動で要約、タイトル、カテゴリーを決定
+- その内容をはてなブログへ自動投稿
 
+- Claude, ChatGPT, Geminiに対応
 
+## 実行環境
 
-## ✅ 実装済み機能
+- **Python 3.13 以上**
+- 主要依存ライブラリ:
+  - `google-genai`
+  - `pydantic`
+  - `requests-oauthlib`
+  - 詳しくは `requirements.txt` を参照
 
-- **Claudeログ解析**: Claude ExporterでエクスポートしたJSONファイルを処理
-- **AI要約**: Google Gemini APIで対話内容を日本語要約・構造化
-- **はてなブログ投稿**: 手動実行でブログ記事として投稿
-- **コスト分析**: トークン使用量と料金記録（USD/JPY換算）
-- **設定検証**: 起動時の設定ファイル・APIキー検証
+## 📋 セットアップ
 
-## 🔧 開発予定・課題
-
-- [ ] **フォルダ監視機能** - ファイル追加時の自動実行
-- [ ] **バッチ処理** - 複数ファイルの一括処理
-- [ ] **ログレベル改善** - 構造化ログ・デバッグ機能強化
-- [ ] **エラー処理強化** - API制限・ネットワークエラー対応
-- [ ] **GUI追加** - 設定・実行の簡易化
-
-## 📋 必要な準備
+### 0. ルートディレクトリで仮想環境を作成、pipインストール
+```bash
+python -m venv .venv
+.venv\Scripts\activate.bat
+pip install -r requirements.txt
+```
 
 ### 1. Chrome拡張機能のインストール
 
@@ -33,62 +37,53 @@ Claude. ChatGPT, Geminiからchrome下記拡張機能でエクスポートした
 - **Gemini Exporter**: https://chromewebstore.google.com/detail/gem-chat-exporter-gemini/jfepajhaapfonhhfjmamediilplchakk
 - **ChatGPT Exporter**: https://chromewebstore.google.com/detail/chatgpt-exporter-chatgpt/ilmdofdhpnhffldihboadndccenlnfll
 
-### 2. API認証情報の取得
+### 2. API認証情報の設定
 
-#### Google Gemini API
-1. [Google AI Studio](https://aistudio.google.com/)でAPIキーを取得
-2. `.env`ファイルに`GEMINI_API_KEY=your_api_key`を設定
-
-#### はてなブログAPI
-はてなブログのconsumer key, consumer secretを取得：
-https://developer.hatena.ne.jp/ja/documents/auth/apis/oauth/consumer
-
-## 🛠 セットアップ
-
-### 1. 依存関係のインストール
-```bash
-pip install -r requirements.txt
-```
-
-### 2. 環境設定
-`.env`ファイルを作成し、APIキーを設定：
+`.env`ファイルを作成し、APIキーを設定、初期設定：
 ```env
 GEMINI_API_KEY=your_gemini_api_key
+HATENA_CONSUMER_KEY=your_consumer_key
+...
 ```
+#### はてなブログOAuth認証
+はてなブログの`consumer key`, `consumer secret`を取得：
+https://developer.hatena.ne.jp/ja/documents/auth/apis/oauth/consumer
 
-### 3. 設定ファイル調整
-`config.yaml`でプロンプトや出力設定をカスタマイズできます：
+`token_request.py`でOAuth認証（初回のみ）
+---追記予定
 
-```yaml
-ai:
-  model: "gemini-2.5-pro"
-  thoughts_level: -1  # 動的思考レベル
-  prompt: |
-    # カスタムプロンプト...
-```
+### 3. drag_and_drop.batのショートカットを使いやすい場所に設置
 
-## 📖 使用方法（現在は手動実行のみ）
 
-### 1. 対話ログの準備
-Claude Exporterを使用してClaudeとの対話をJSONファイルでエクスポート
+## 📖 使用方法
 
-### 2. ファイルパス設定
-`main.py`の`INPUT_PATH`を手動で変更：
-```python
-INPUT_PATH = Path(r"path/to/your/exported.json")
-```
+### 1. 対話ログエクスポート
+Claude/ChatGPT/Gemini Exporterを使用してClaudeとの対話をjson形式でエクスポート
 
-### 3. 実行
-```bash
-python main.py
-```
+### 2. drag_and_drop.batのショートカットにjsonをドラッグ・アンド・ドロップ
 
-### 4. 結果確認
-- `outputs/`フォルダに要約テキストが保存
-- `record.csv`にコスト分析結果が記録
-- はてなブログに投稿（成功時）
+### 3. 結果確認
+- ターミナルが開きブログ投稿の内容・URLを表示
+- `outputs/`フォルダに最新の投稿とCSVファイルを出力（追記）
 
-**注意**: 現在は1ファイルずつの手動処理です
+
+## 🔧 開発予定・課題
+
+- [ ] **投稿完了通知機能** - LINEとの連携を考え中
+- [ ] **はてな初回OAuth認証の簡素化・ガイダンス作成** - まずこのREADMEを充実させる
+- [ ] **GUI追加** - 設定・実行の簡易化
+- [ ] **ログレベル改善** - 構造化ログ・デバッグ機能強化
+- [ ] **エラー処理強化** - API制限・ネットワークエラー等
+- [ ] **GoogleSheets連携** - csv自動追記でどこでもログ確認
+- [ ] **フォルダ監視** - ファイル追加時の自動実行
+
+## ✅ 実装済み機能
+
+- **対話型ログ解析**: Claude ExporterでエクスポートしたJSONファイルをAI用に処理
+- **AI要約**: Google Gemini APIで対話内容の要約を出力
+- **はてなブログ投稿**: ブログ記事として投稿
+- **コスト分析**: トークン使用量と料金記録（JPY換算） ※基本はGemini 2.5 無料枠での使用を想定
+- **設定検証**: 起動時の設定ファイル・APIキー検証
 
 ## 📁 プロジェクト構成
 
@@ -98,62 +93,19 @@ chatbot-logger/
 ├── ai_client.py         # Gemini API接続
 ├── json_loader.py       # JSONファイル処理
 ├── uploader.py          # ブログ投稿機能
+├── token_request.py     # はてな初回OAuth認証用スクリプト
+├── drag_and_drop.bat    # 🎯 ドラッグ＆ドロップ起動スクリプト
 ├── config.yaml          # 設定ファイル
+├── .env                 # 環境変数設定 (APIキーなど)
 ├── requirements.txt     # 依存関係
-├── sample/              # サンプルデータ
 ├── outputs/             # 出力フォルダ
-└── tests/              # テストファイル
+└── tests/               # テストファイル
 ```
 
-## 🔧 主要コンポーネント
-
-### BlogParts モデル
-```python
-class BlogParts(BaseModel):
-    title: str           # ブログタイトル
-    content: str         # 本文（Markdown）
-    categories: List[str] # カテゴリー
-    author: Optional[str] # 著者
-    updated: Optional[datetime] # 更新日時
-```
-
-### 設定検証
-起動時に設定ファイルとAPIキーの妥当性を自動検証し、エラーを事前に防ぎます。
-
-## 📊 コスト分析
-
-実行ごとに以下の情報を記録：
-- 入力/出力/思考トークン数
-- USD/JPY換算での料金
-- モデル別の詳細コスト
-
-## 🧪 開発・テスト
-
-### テスト実行
-```bash
-pytest
-```
-
-### 開発依存関係
-```bash
-pip install -r requirements-dev.txt
-```
-
-## 🚧 開発状況
-
-このプロジェクトは**個人の学習記録自動化**を目的とした開発中のツールです。
-現在の実装は基本機能のプロトタイプ段階で、多くの改善点があります。
-
-### 技術スタック
+## 技術スタック
 - OAuth 1.0a (requests-oauthlib)
-- Gemini API (google-genai)
+- Gemini API 構造化出力
 - Pydantic (データバリデーション)
-
-### 既知の課題
-- ハードコードされたファイルパス
-- 単一ファイル処理のみ
-- Claude形式以外未対応
-- エラーハンドリング不十分
 
 ## 📝 ライセンス
 

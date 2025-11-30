@@ -3,7 +3,6 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import xmltodict
 import yaml
 from dotenv import load_dotenv
 from requests_oauthlib import OAuth1Session
@@ -12,7 +11,7 @@ load_dotenv(override=True)
 config_path = Path("config.yaml")
 config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
 
-DEBUG = config["other"]["debug"].lower() in ("true", "1", "t")
+DEBUG = os.getenv("DEBUG", "").lower() in ("true", "1", "t")
 
 
 def xml_unparser(
@@ -91,31 +90,53 @@ def hatena_uploader(entry_xml: str = None) -> dict:
         else:
             print(f"✗ エラー: {response.text}")
 
-    return xmltodict.parse(response.text)["entry"]  # 辞書型で出力
+    print(response.text)
+
+    root = ET.fromstring(response.text)
+    # 名前空間マップ
+    ns = {"atom": "http://www.w3.org/2005/Atom", "app": "http://www.w3.org/2007/app"}
+
+    categories = []
+    for category_elem in root.findall("atom:category", ns):
+        term = category_elem.get("term")
+        if term:
+            categories.append(term)
+
+    response_dict = {
+        # Atom名前空間の要素
+        "title": root.find("{http://www.w3.org/2005/Atom}title").text,
+        "author": root.find("atom:author/atom:name", ns).text,
+        "content": root.find("atom:content", ns).text,
+        "time": datetime.fromisoformat(root.find("atom:updated", ns).text),
+        "link_edit": root.find("atom:link[@rel='edit']", ns).get("href"),
+        "link_alternate": root.find("atom:link[@rel='alternate']", ns).get("href"),
+        "categories": categories,
+        # app名前空間の要素
+        "is_draft": root.find("app:control/app:draft", ns).text == "yes"
+    }
+    return response_dict
 
 
 if __name__ == "__main__":
-    if DEBUG:
-        # sample XML
-        entry_xml = r"""<?xml version="1.0" encoding="utf-8"?>
-        <entry xmlns="http://www.w3.org/2005/Atom"
-            xmlns:app="http://www.w3.org/2007/app">
-        <title>TITLE</title>
-        <updated>2013-09-02T11:28:23+09:00</updated>  # 未来の投稿の場合指定
-        <author><name>name</name></author>
-        <content type="text/plain">
-            ===========CONTENT===========
-        </content>
-        <category term="Scala" />
-        <app:control>
-            <app:draft>yes</app:draft> # 下書きの場合
-            <app:preview>no</app:preview> #
-        </app:control>
-        </entry>"""
 
-        entry_xml = xml_unparser("タイトル", "本文のテスト")
-        data = hatena_uploader(entry_xml)  # 辞書型
+    # sample XML
+    entry_xml = r"""<?xml version="1.0" encoding="utf-8"?>
+    <entry xmlns="http://www.w3.org/2005/Atom"
+        xmlns:app="http://www.w3.org/2007/app">
+    <title>TITLE</title>
+    <updated>2013-09-02T11:28:23+09:00</updated>  # 未来の投稿の場合指定
+    <author><name>name</name></author>
+    <content type="text/plain">
+        ===========CONTENT===========
+    </content>
+    <category term="Scala" />
+    <app:control>
+        <app:draft>yes</app:draft> # 下書きの場合
+        <app:preview>no</app:preview> #
+    </app:control>
+    </entry>"""
 
-        print(
-            f"タイトル：{data["title"]}\n著者：{data["author"]["name"]}\n{"-" * 15}本文{"-" * 15}\n{data["content"]["#text"]}"
-        )
+    entry_xml = xml_unparser("タイトル", "本文のテスト")
+    data = hatena_uploader(entry_xml)  # 辞書型
+
+    print(data)
