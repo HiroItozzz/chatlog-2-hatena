@@ -2,9 +2,7 @@ from pathlib import Path
 
 import json_loader as jl
 
-sample_path = Path(
-    r"e:\Downloads\Claude-ターミナルのグラフィックスドライバー問題 (2).json"
-)
+sample_path = Path(r"E:\Dev\Projects\chatbot-logger\sample\ChatGPT-sample.json")
 
 
 def test_json_loader():
