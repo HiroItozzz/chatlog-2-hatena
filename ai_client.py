@@ -24,18 +24,12 @@ LEVEL = config["ai"]["thoughts_level"]
 
 class BlogParts(BaseModel):
     title: str = Field(description="ブログのタイトル。")
-    content: str = Field(description="ブログの本文（マークダウン形式）")
-    categories: List[str] = Field(description="カテゴリー一覧")
-    author: Optional[str] = None
-    updated: Optional[datetime] = None
-
-
-class BlogParts(BaseModel):
-    title: str = Field(description="ブログのタイトル。")
-    content: str = Field(description="ブログの本文（マークダウン形式）")
-    categories: List[str] = Field(description="カテゴリー一覧")
-    author: Optional[str] = None
-    updated: Optional[datetime] = None
+    content: str = Field(
+        description=f"ブログの本文（マークダウン形式）。その最後には、「この記事は {MODEL} により自動生成されています」と目立つように注記してください。"
+    )
+    categories: List[str] = Field(description="カテゴリー一覧", max_items=4)
+    author: Optional[str]
+    updated: Optional[datetime]
 
 
 class Gemini_fee:
@@ -64,7 +58,7 @@ def get_summary(
     api_key: str,
     model: str = "gemini-2.5-pro",
     thoughts_level: int = -1,
-    custom_prompt: str = "please summarize the following conversation for my personal blog article. Keep it under 200 words: ",
+    custom_prompt: str = "please summarize the following conversation for my personal blog article. Keep it under 200 words in Japanese: ",
 ) -> tuple[BlogParts, dict]:
 
     if DEBUG:
@@ -99,6 +93,7 @@ def get_summary(
             else:
                 raise
 
+    raw_text = response.text
     contents = BlogParts.model_validate_json(response.text)
 
     message = (
@@ -110,19 +105,21 @@ def get_summary(
             else f"thoughts limit: {thoughts_level}"
         )
     )
-    ### リファクタ予定 ###
-    input_tokens = response.usage_metadata.prompt_token_count
-    thoughts_tokens = response.usage_metadata.thoughts_token_count
-    output_tokens = response.usage_metadata.candidates_token_count
-    ####################
 
     stats = {
+        "output_letter_count": len(raw_text),
         "input_tokens": response.usage_metadata.prompt_token_count,
         "thoughts_tokens": response.usage_metadata.thoughts_token_count,
         "output_tokens": response.usage_metadata.candidates_token_count,
     }
 
     if DEBUG:
+        ### リファクタ予定 ###
+        input_tokens = response.usage_metadata.prompt_token_count
+        thoughts_tokens = response.usage_metadata.thoughts_token_count
+        output_tokens = response.usage_metadata.candidates_token_count
+        ####################
+
         total_output_tokens = thoughts_tokens + output_tokens
         input_fee = Gemini_fee().calculate(
             model, token_type="input", tokens=input_tokens

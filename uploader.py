@@ -62,7 +62,7 @@ def xml_unparser(
     return ET.tostring(ROOT, encoding="unicode")
 
 
-def hatena_uploader(entry_xml: str = None) -> dict:
+def hatena_uploader(entry_xml: str = "") -> dict:
     URL = os.getenv(
         "HATENA_BASE_URL", None
     ).strip()  # https://blog.hatena.ne.jp/{はてなID}/{ブログID}/atom/
@@ -112,7 +112,7 @@ def hatena_uploader(entry_xml: str = None) -> dict:
         "link_alternate": root.find("atom:link[@rel='alternate']", ns).get("href"),
         "categories": categories,
         # app名前空間の要素
-        "is_draft": root.find("app:control/app:draft", ns).text == "yes"
+        "is_draft": root.find("app:control/app:draft", ns).text == "yes",
     }
     return response_dict
 

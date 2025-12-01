@@ -117,6 +117,24 @@ def append_csv(path: Path, columns, row: list, logger: logging.Logger):
         logger.exception("CSVファイルへの書き込み中にエラーが発生しました。")
 
 
+def summarize_and_upload(gemini_attrs: dict) -> tuple[dict, dict]:
+
+    # GoogleへAPIリクエスト
+    blog_parts, gemini_stats = ai_client.get_summary(**gemini_attrs)
+
+    # はてなブログへ投稿
+    xml_data = uploader.xml_unparser(
+        title=blog_parts.title,  # タイトル
+        content=blog_parts.content,  # 本文
+        categories=blog_parts.categories + ["自動投稿", "AtomPub"],  # カテゴリ追加指定
+        author=blog_parts.author,  # デフォルトははてなID
+        updated=blog_parts.updated,  # datetime型, デフォルトは5分後に公開
+    )
+    result = uploader.hatena_uploader(xml_data)  # 辞書型で返却
+
+    return result, gemini_stats
+
+
 if __name__ == "__main__":
 
     # config.yamlで設定初期化
@@ -154,7 +172,7 @@ if __name__ == "__main__":
 
         logger.info(f"Your API Key: ...{API_KEY[-5:]} for {MODEL}")
 
-        GEMINI_ATTRS = {
+        gemini_attrs = {
             "conversation": conversation,
             "api_key": API_KEY,
             "custom_prompt": PROMPT,
@@ -162,45 +180,27 @@ if __name__ == "__main__":
             "thoughts_level": LEVEL,
         }
 
-        # GoogleへAPIリクエスト
-        blog_parts, stats = ai_client.get_summary(**GEMINI_ATTRS)
+        # Googleで要約取得 & はてなへ投稿
+        result, gemini_stats = summarize_and_upload(gemini_attrs)
 
-        xml_data = uploader.xml_unparser(
-            title=blog_parts.title,
-            content=blog_parts.content,
-            categories=blog_parts.categories + ["自動投稿", "AtomPub"],
-            author=blog_parts.author,
-            updated=blog_parts.updated,
-        )
-
-        result_dict = uploader.hatena_uploader(xml_data)  # 辞書型で返却
-        entry_url = result_dict.get("link_alternate", "")
-        entry_title = result_dict.get("title", "")
-        entry_content = result_dict.get("content", "")
-        categories = result_dict.get("categories", [])
+        url = result.get("link_alternate", "")
+        title = result.get("title", "")
+        content = result.get("content", "")
+        categories = result.get("categories", [])
 
         logger.info(f"はてなブログへの投稿に成功しました。")
-        logger.info(f"URL: {entry_url}")
+        logger.info(f"URL: {url}")
         logger.info("-" * 50)
-        logger.info(f"投稿タイトル：{entry_title}")
+        logger.info(f"投稿タイトル：{title}")
         logger.info(f"\n{"-" * 20}投稿本文{"-" * 20}")
-        logger.info(f"{entry_content[:100]}")
+        logger.info(f"{content[:100]}")
         logger.info("-" * 50)
-
-        i_tokens = stats["input_tokens"]
-        th_tokens = stats["thoughts_tokens"]
-        o_tokens = stats["output_tokens"]
 
         gemini_fee = ai_client.Gemini_fee()
-        input_fee = gemini_fee.calculate(MODEL, token_type="input", tokens=i_tokens)
-        thoughts_fee = gemini_fee.calculate(
-            MODEL, token_type="output", tokens=th_tokens
-        )
-        output_fee = gemini_fee.calculate(MODEL, token_type="output", tokens=o_tokens)
-
-        total_output_fee = thoughts_fee + output_fee
-        total_fee = input_fee + total_output_fee
-        ###############
+        i_fee = gemini_fee.calculate(MODEL, "input", gemini_stats["input_tokens"])
+        th_fee = gemini_fee.calculate(MODEL, "output", gemini_stats["thoughts_tokens"])
+        o_fee = gemini_fee.calculate(MODEL, "output", gemini_stats["output_tokens"])
+        total_fee = i_fee + th_fee + o_fee
 
         # 為替レートを取得
         ticker = "USDJPY=X"
@@ -220,6 +220,7 @@ if __name__ == "__main__":
             "model",
             "thinking_budget",
             "input_letter_count",
+            "output_letter_count",
             "input_tokens",
             "input_fee",
             "thoughts_tokens",
@@ -235,24 +236,25 @@ if __name__ == "__main__":
             datetime.now().isoformat(),
             INPUT_PATH.name,
             ai_name,
-            entry_url,
-            result_dict.get("is_draft"),
-            entry_title,
-            entry_content[:30],
+            url,
+            result.get("is_draft"),
+            title[:15],
+            content[:30],
             ",".join(categories),
-            PROMPT,
+            PROMPT[:20],
             MODEL,
             LEVEL,
             len(conversation),
-            i_tokens,
-            input_fee,
-            th_tokens,
-            thoughts_fee,
-            o_tokens,
-            output_fee,
+            gemini_stats["output_letter_count"],
+            gemini_stats["input_tokens"],
+            i_fee,
+            gemini_stats["thoughts_tokens"],
+            th_fee,
+            gemini_stats["output_tokens"],
+            o_fee,
             total_fee,
             total_JPY,
-            API_KEY[-5:],
+            "..." + API_KEY[-5:],
         ]
 
         output_dir = Path(config["paths"]["output_dir"].strip())
@@ -262,8 +264,8 @@ if __name__ == "__main__":
 
         append_csv(csv_path, columns, record, logger)
 
-        summary_path.write_text(blog_parts.content, encoding="utf-8")
-        logger.info(f"created summary: {blog_parts.content[:100]}")
+        summary_path.write_text(content, encoding="utf-8")
+        logger.info(f"created summary: {content[:100]}")
 
     except Exception as e:
         logger.critical(
