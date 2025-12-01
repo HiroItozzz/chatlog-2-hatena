@@ -44,7 +44,7 @@ def get_nested_config(config_dict, key_path):
         return None
 
 
-def validate_config(config_dict, api_key):
+def validate_config(config_dict: dict, seacret_keys: dict):
     """設定ファイルとAPIキーの妥当性を検証"""
     required_keys = ["ai.model", "ai.prompt", "paths.output_dir", "other.debug"]
 
@@ -54,8 +54,9 @@ def validate_config(config_dict, api_key):
             raise ValueError(f"Missing required config: {key}")
 
     # API_KEYの検証
-    if not api_key or len(api_key.strip()) == 0:
-        raise ValueError("GEMINI_API_KEY is required in environment variables")
+    for name, seacret_key in seacret_keys.values():
+        if len(seacret_key.strip()) == 0:
+            raise ValueError(f"{name} is required in environment variables")
 
     # thoughts_levelの範囲チェック
     thoughts_level = config_dict["ai"]["thoughts_level"]
@@ -67,7 +68,7 @@ def validate_config(config_dict, api_key):
         )
 
 
-def initialize_config():
+def initialize_config() -> tuple[dict, dict]:
     """設定の初期化と検証"""
     load_dotenv(override=True)
     config_path = Path("config.yaml")
@@ -82,19 +83,18 @@ def initialize_config():
     except yaml.YAMLError as e:
         raise ValueError(f"Invalid YAML syntax in config file: {e}")
 
-    ### .env, config.yamlで基本設定 ###
-    api_key_raw = os.getenv("GEMINI_API_KEY")
-    API_KEY = api_key_raw.strip() if api_key_raw else None
+    seacret_keys = {
+        "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY", ""),
+        "HATENA_CONSUMER_KEY": os.getenv("HATENA_CONSUMER_KEY", ""),
+        "HATENA_CONSUMER_KEY_SECRET": os.getenv("HATENA_CONSUMER_SECRET", ""),
+        "HATENA_ACCESS_TOKEN": os.getenv("HATENA_ACCESS_TOKEN", ""),
+        "HATENA_ACCESS_TOKEN_SECRET": os.getenv("HATENA_ACCESS_TOKEN_SECRET", ""),
+    }
 
     # 設定の検証
-    validate_config(config, API_KEY)
+    validate_config(config, seacret_keys)
 
-    PROMPT = config["ai"]["prompt"]
-    MODEL = config["ai"]["model"]
-    LEVEL = config["ai"]["thoughts_level"]
-    DEBUG = config["other"]["debug"].lower() in ("true", "1", "t")
-
-    return config, API_KEY, PROMPT, MODEL, LEVEL, DEBUG
+    return config, seacret_keys
 
 
 ############################################################
@@ -139,10 +139,15 @@ if __name__ == "__main__":
 
     # config.yamlで設定初期化
     try:
-        config, API_KEY, PROMPT, MODEL, LEVEL, DEBUG = initialize_config()
+        config, SEACRET_KEYS = initialize_config()
     except Exception as e:
         print(f"CONFIG LOADING ERROR: {e}", file=sys.stderr)
         sys.exit(1)
+
+    PROMPT = config["ai"]["prompt"]
+    MODEL = config["ai"]["model"]
+    LEVEL = config["ai"]["thoughts_level"]
+    DEBUG = config["other"]["debug"].lower() in ("true", "1", "t")
 
     # configでDEBUGモードの場合のみ.envによる設定を上書き
     if DEBUG:
