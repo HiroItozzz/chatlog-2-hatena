@@ -1,25 +1,19 @@
 import json
-import os
+import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import yaml
 from dotenv import load_dotenv
 
-config = yaml.safe_load(Path("config.yaml").read_text(encoding="utf-8"))
-DEBUG = os.getenv("DEBUG", "").lower() in ("true", "1", "t")
+logging.getLogger(__name__)
 
 
-def json_loader(path: Path) -> str:
-    if DEBUG:
-        print(f"Loading: {path}")
+def json_loader(path: Path, ai_name) -> str:
 
-    AI_LIST = ["Claude", "Gemini", "ChatGPT"]
-    ai_name = next((p for p in AI_LIST if path.name.startswith(p)), "Unknown AI")
+    logging.info(f"jsonファイルを読み込みます: {path.name}")
 
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-        dates_meta = data["metadata"]["dates"]
         messages = data["messages"]
     except KeyError as e:
         raise KeyError(f"エラー： jsonファイルの構成を確認してください - {path}") from e
@@ -31,10 +25,9 @@ def json_loader(path: Path) -> str:
     latest_dt = datetime.strptime(latest, dt_format) if latest else None
     # 初期化
     previous_dt = latest_dt
-    logs = []
 
-    if DEBUG:
-        print(f"処理前： {len(messages)}行")
+    logs = []
+    logging.info(f"処理中： {len(messages)}件")
 
     try:
         for message in reversed(messages):  # 逆順
@@ -53,8 +46,9 @@ def json_loader(path: Path) -> str:
                 agent = ai_name
             else:
                 agent = message.get("role")
-                if DEBUG:
-                    print(f"Detected agent other than You and {ai_name}: {agent}")
+                logging.debug(
+                    f"{'='*25}Detected agent other than You and {ai_name}: {agent} {'='*25}"
+                )
 
             text = message.get("say")
             logs.append(
@@ -64,22 +58,17 @@ def json_loader(path: Path) -> str:
             if timestamp:
                 previous_dt = msg_dt
 
-        if DEBUG:
-            if timestamp is None:
-                print("会話履歴にtimestampが見つかりませんでした。")
+        if timestamp is None:
+            logging.info("会話履歴に時刻情報がありません。すべての会話を取得します。")
 
     except KeyError as e:
         raise KeyError(f"エラー： jsonファイルの構成を確認してください - {path}") from e
 
     conversation = "\n".join(logs[::-1])  # 順番を戻す
-    if DEBUG:
-        print(f"処理後: {len(logs)}行")
-        print(f"最初{"="*100}\n{logs[0][:100]}")
-        print(f"最後{"="*100}\n{logs[-1][:100]}")
 
-        output_path = Path("outputs/test_json_loader.txt")
-        output_path.parent.mkdir(exist_ok=True)
-        output_path.write_text(conversation, encoding="utf-8")
-        print(f"テストファイルを出力しました： {output_path}")
+    logging.info(f"{len(logs)}件の発言を取得しました。")
+    logging.info(f"{'='*25}最初のメッセージ{'='*25}\n{logs[0][:100]}")
+    logging.info(f"{'='*25}最後のメッセージ{'='*25}\n{logs[-1][:100]}")
+    logging.info("☑jsonをテキストに変換しました。")
 
     return conversation

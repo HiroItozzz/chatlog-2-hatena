@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
-# .envでログレベル判定
+# .envのDEBUG項目の存在と値でログレベル判定（暫定）
 try:
     DEBUG_ENV = os.environ.get("DEBUG", "False").lower() in ("true", "t", "1")
     initial_level = logging.DEBUG if DEBUG_ENV else logging.INFO
@@ -121,6 +121,7 @@ def summarize_and_upload(
     # GoogleへAPIリクエスト
     blog_parts, gemini_stats = ai_client.get_summary(**gemini_config)
 
+    ##### リファクタ予定：hatena_seacret_keysは現在関数内でconfig呼び出し
     # はてなブログへ投稿
     xml_data = uploader.xml_unparser(
         title=blog_parts.title,  # タイトル
@@ -131,6 +132,7 @@ def summarize_and_upload(
         is_draft=debug_mode,  # デバッグ時は下書き
     )
     result = uploader.hatena_uploader(xml_data)  # 辞書型で返却
+    #################################################################
 
     return result, gemini_stats
 
@@ -144,11 +146,11 @@ def main(
 
     logger.info("================================================")
     logger.info(f"アプリケーションが起動しました。DEBUGモード: {debug_mode}")
-    ai_list = ["Claude", "Gemini", "ChatGPT"]
 
-    ai_name = next((p for p in ai_list if input_path.name.startswith(p)), "Unknown AI")
+    AI_LIST = ["Claude", "Gemini", "ChatGPT"]
+    ai_name = next((p for p in AI_LIST if input_path.name.startswith(p)), "Unknown AI")
 
-    conversation = json_loader.json_loader(input_path)
+    conversation = json_loader.json_loader(input_path, ai_name)
 
     gemini_config["conversation"] = conversation
     gemini_attrs = {
@@ -262,7 +264,9 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # 環境変数の参照結果がFalseの場合のみconfigで上書き
-    if not DEBUG_ENV:
+    if DEBUG_ENV:
+        DEBUG = DEBUG_ENV
+    else:
         DEBUG = DEBUG_CONFIG
         if DEBUG:
             logging.getLogger().setLevel(logging.DEBUG)
@@ -273,7 +277,10 @@ if __name__ == "__main__":
         "thoughts_level": LEVEL,
         "gemini_api_key": API_KEY,
     }
+
+    #### リファクタ予定（現状は関数内でCONFIG呼び出し） ###
     HATENA_SECRET_KEYS = {}
+    ###################################################
 
     try:
         if len(sys.argv) > 1:
