@@ -7,7 +7,7 @@ import requests
 logger = logging.getLogger(__name__)
 
 
-def line_notifier(content: int, line_access_token):
+def line_messenger(content: int, line_access_token):
 
     URL = "https://api.line.me/v2/bot/message/broadcast"
 

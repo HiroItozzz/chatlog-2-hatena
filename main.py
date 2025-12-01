@@ -7,7 +7,7 @@ from pathlib import Path
 
 import ai_client
 import json_loader
-import line_notify
+import line_message
 import uploader
 import yaml
 import yfinance as yf
@@ -245,9 +245,11 @@ def main(
     summary_path.write_text(content, encoding="utf-8")
 
     LINE_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "").strip()
-    line_text = f"投稿完了です。今日も長い時間お疲れさまでした！\nURL:{url}\nタイトル：{title}"
+    line_text = (
+        f"投稿完了です。今日も長い時間お疲れさまでした！\nURL:{url}\nタイトル：{title}"
+    )
     if LINE_ACCESS_TOKEN:
-        line_notify.line_notifier(line_text, LINE_ACCESS_TOKEN)
+        line_message.line_messenger(line_text, LINE_ACCESS_TOKEN)
 
     return 0
 
