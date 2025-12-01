@@ -7,6 +7,7 @@ from pathlib import Path
 
 import ai_client
 import json_loader
+import pandas as pd
 import uploader
 import yaml
 import yfinance as yf
@@ -98,19 +99,21 @@ def initialize_config() -> tuple[dict, dict]:
     return config, seacret_keys
 
 
-def append_csv(path: Path, columns: list, row: list):
+def append_csv(path: Path, df: pd.DataFrame):
     """pathがなければ作成し、CSVに1行追記"""
+    is_new_file = not path.exists()
     try:
-        if not path.exists():
-            with path.open("w", newline="", encoding="utf-8-sig") as f:
-                writer = csv.writer(f)
-                writer.writerow(columns)
-        logger.info(f"新しいCSVファイルを作成しました: {path}")
-
-        with path.open("a", newline="", encoding="utf-8-sig") as f:
-            writer = csv.writer(f)
-            writer.writerow(row)
-        logger.info(f"CSVにデータを追記しました: {path.name}")
+        df.to_csv(
+            path,
+            encoding="utf-8-sig",
+            index=False,
+            mode="a",
+            header=is_new_file,  # ファイルがなければヘッダー書き込み、あればFalse
+        )
+        if is_new_file:
+            logger.info(f"新しいCSVファイルを作成しました: {path}")
+        else:
+            logger.info(f"CSVにデータを追記しました: {path.name}")
     except Exception:
         logger.exception("CSVファイルへの書き込み中にエラーが発生しました。")
 
@@ -184,62 +187,40 @@ def main(
     dy_rate = yf.Ticker(ticker).history(period="1d").Close.iloc[0]
     total_JPY = total_fee * dy_rate
 
-    columns = [
-        "timestamp",
-        "conversation",
-        "AI_name",
-        "entry_URL",
-        "is_draft",
-        "entry_title",
-        "entry_content",
-        "categories",
-        "custom_prompt",
-        "model",
-        "thinking_budget",
-        "input_letter_count",
-        "output_letter_count",
-        "input_tokens",
-        "input_fee",
-        "thoughts_tokens",
-        "thoughts_fee",
-        "output_tokens",
-        "output_fee",
-        "total_fee (USD)",
-        "total_fee (JPY)",
-        "api_key",
-    ]
-
-    record = [
-        datetime.now().isoformat(),
-        input_path.name,
-        ai_name,
-        url,
-        result.get("is_draft"),
-        title[:15],
-        content[:30],
-        ",".join(categories),
-        gemini_config["custom_prompt"][:20],
-        gemini_config["model"],
-        gemini_config["thoughts_level"],
-        len(conversation),
-        gemini_stats["output_letter_count"],
-        gemini_stats["input_tokens"],
-        i_fee,
-        gemini_stats["thoughts_tokens"],
-        th_fee,
-        gemini_stats["output_tokens"],
-        o_fee,
-        total_fee,
-        total_JPY,
-        "..." + gemini_config["gemini_api_key"][-5:],
-    ]
+    df = pd.DataFrame(
+        {
+            "timestamp": datetime.now().isoformat(),
+            "conversation": input_path.name[len(ai_name) + 1 :],
+            "AI_name": ai_name,
+            "entry_URL": url,
+            "is_draft": result.get("is_draft"),
+            "entry_title": title[:15],
+            "entry_content": content[:30],
+            "categories": ",".join(categories),
+            "custom_prompt": gemini_config["custom_prompt"][:20],
+            "model": gemini_config["model"],
+            "thinking_budget": gemini_config["thoughts_level"],
+            "input_letter_count": len(conversation),
+            "output_letter_count": gemini_stats["output_letter_count"],
+            "input_tokens": gemini_stats["input_tokens"],
+            "input_fee": i_fee,
+            "thoughts_tokens": gemini_stats["thoughts_tokens"],
+            "thoughts_fee": th_fee,
+            "output_tokens": gemini_stats["output_tokens"],
+            "output_fee": o_fee,
+            "total_fee (USD)": total_fee,
+            "total_fee (JPY)": total_JPY,
+            "api_key": "..." + gemini_config["gemini_api_key"][-5:],
+        },
+        index=["vals"],
+    )
 
     output_dir = Path(config["paths"]["output_dir"].strip())
     output_dir.mkdir(exist_ok=True)
     summary_path = output_dir / (f"summary_{input_path.stem}.txt")
     csv_path = output_dir / "record_test.csv"
 
-    append_csv(csv_path, columns, record)
+    append_csv(csv_path, df)
 
     summary_path.write_text(content, encoding="utf-8")
     return 0
