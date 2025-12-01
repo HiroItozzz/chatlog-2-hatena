@@ -12,14 +12,15 @@ import yaml
 import yfinance as yf
 from dotenv import load_dotenv
 
-# .envでログレベル判定。ただし最終決定はconfigを見てメイン処理内で実行
+logger = logging.getLogger(__name__)
+
+# .envでログレベル判定
 try:
     IS_DEBUG_MODE_ENV = os.environ.get("DEBUG", "False").lower() in ("true", "t", "1")
     initial_level = logging.DEBUG if IS_DEBUG_MODE_ENV else logging.INFO
 except Exception:
     initial_level = logging.INFO
 
-# 設定
 logging.basicConfig(
     level=initial_level,
     format="%(asctime)s - %(levelname)s - [%(name)s] - %(message)s",
@@ -28,8 +29,6 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout),
     ],
 )
-
-###########################################################
 
 
 def get_nested_config(config_dict, key_path):
@@ -97,10 +96,7 @@ def initialize_config():
     return config, API_KEY, PROMPT, MODEL, LEVEL, DEBUG
 
 
-############################################################
-
-
-def append_csv(path: Path, columns, row: list, logger: logging.Logger):
+def append_csv(path: Path, columns, row: list):
     """pathがなければ作成し、CSVに1行追記"""
     try:
         if not path.exists():
@@ -135,137 +131,138 @@ def summarize_and_upload(gemini_attrs: dict) -> tuple[dict, dict]:
     return result, gemini_stats
 
 
-if __name__ == "__main__":
+def main(input_path: Path):
 
-    # config.yamlで設定初期化
+    # config.yamlで設定（再）初期化
     try:
         config, API_KEY, PROMPT, MODEL, LEVEL, DEBUG = initialize_config()
     except Exception as e:
-        print(f"CONFIG LOADING ERROR: {e}", file=sys.stderr)
+        logger.critical(f"CONFIG LOADING ERROR: {e}", exc_info=True)
         sys.exit(1)
 
-    # configでDEBUGモードの場合のみ.envによる設定を上書き
     if DEBUG:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    logger = logging.getLogger(__name__)
     logger.info("================================================")
     logger.info(f"アプリケーションが起動しました。DEBUGモード: {DEBUG}")
+    ai_list = ["Claude", "Gemini", "ChatGPT"]
 
-    ### uploader.pyで自動取得に変更予定 ###
-    # コマンドライン引数からファイル名を取得する
-    if len(sys.argv) > 1:
-        INPUT_PATH = Path(sys.argv[1])
-        logger.info(f"処理を開始します: {INPUT_PATH.name}")
-    else:
-        # 引数がなければエラーメッセージを表示
-        print("エラー: ファイル名が正しくありません。実行を終了します")
-        sys.exit(1)
-    ####################################
+    ai_name = next((p for p in ai_list if input_path.name.startswith(p)), "Unknown AI")
+
+    conversation = json_loader.json_loader(input_path)
+    gemini_attrs = {
+        "conversation": conversation,
+        "api_key": API_KEY,
+        "custom_prompt": PROMPT,
+        "model": MODEL,
+        "thoughts_level": LEVEL,
+    }
+
+    logger.info(f"Your API Key: ...{API_KEY[-5:]} for {MODEL}")
+
+    # Googleで要約取得 & はてなへ投稿
+    result, gemini_stats = summarize_and_upload(gemini_attrs)
+
+    url = result.get("link_alternate", "")
+    title = result.get("title", "")
+    content = result.get("content", "")
+    categories = result.get("categories", [])
+
+    logger.info(f"はてなブログへの投稿に成功しました。")
+    logger.info(f"URL: {url}")
+    logger.info("-" * 50)
+    logger.info(f"投稿タイトル：{title}")
+    logger.info(f"\n{'-' * 20}投稿本文{'-' * 20}")
+    logger.info(f"{content[:100]}")
+    logger.info("-" * 50)
+
+    gemini_fee = ai_client.Gemini_fee()
+    i_fee = gemini_fee.calculate(MODEL, "input", gemini_stats["input_tokens"])
+    th_fee = gemini_fee.calculate(MODEL, "output", gemini_stats["thoughts_tokens"])
+    o_fee = gemini_fee.calculate(MODEL, "output", gemini_stats["output_tokens"])
+    total_fee = i_fee + th_fee + o_fee
+
+    # 為替レートを取得
+    ticker = "USDJPY=X"
+    dy_rate = yf.Ticker(ticker).history(period="1d").Close.iloc[0]
+    total_JPY = total_fee * dy_rate
+
+    columns = [
+        "timestamp",
+        "conversation",
+        "AI_name",
+        "entry_URL",
+        "is_draft",
+        "entry_title",
+        "entry_content",
+        "categories",
+        "custom_prompt",
+        "model",
+        "thinking_budget",
+        "input_letter_count",
+        "output_letter_count",
+        "input_tokens",
+        "input_fee",
+        "thoughts_tokens",
+        "thoughts_fee",
+        "output_tokens",
+        "output_fee",
+        "total_fee (USD)",
+        "total_fee (JPY)",
+        "api_key",
+    ]
+
+    record = [
+        datetime.now().isoformat(),
+        input_path.name,
+        ai_name,
+        url,
+        result.get("is_draft"),
+        title[:15],
+        content[:30],
+        ",".join(categories),
+        PROMPT[:20],
+        MODEL,
+        LEVEL,
+        len(conversation),
+        gemini_stats["output_letter_count"],
+        gemini_stats["input_tokens"],
+        i_fee,
+        gemini_stats["thoughts_tokens"],
+        th_fee,
+        gemini_stats["output_tokens"],
+        o_fee,
+        total_fee,
+        total_JPY,
+        "..." + API_KEY[-5:],
+    ]
+
+    output_dir = Path(config["paths"]["output_dir"].strip())
+    output_dir.mkdir(exist_ok=True)
+    summary_path = output_dir / (f"summary_{input_path.stem}.txt")
+    csv_path = output_dir / "record_test.csv"
+
+    append_csv(csv_path, columns, record)
+
+    summary_path.write_text(content, encoding="utf-8")
+    logger.info(f"created summary: {content[:100]}")
+    return 0
+
+
+if __name__ == "__main__":
 
     try:
-        AI_LIST = ["Claude", "Gemini", "ChatGPT"]
-        ai_name = next(
-            (p for p in AI_LIST if INPUT_PATH.name.startswith(p)), "Unknown AI"
-        )
-        conversation = json_loader.json_loader(INPUT_PATH)
+        if len(sys.argv) > 1:
+            input_path = Path(sys.argv[1])
+            logger.info(f"処理を開始します: {input_path.name}")
+        else:
+            logger.info("エラー: ファイル名が正しくありません。実行を終了します")
+            sys.exit(1)
 
-        logger.info(f"Your API Key: ...{API_KEY[-5:]} for {MODEL}")
+        exit_code = main(input_path)
 
-        gemini_attrs = {
-            "conversation": conversation,
-            "api_key": API_KEY,
-            "custom_prompt": PROMPT,
-            "model": MODEL,
-            "thoughts_level": LEVEL,
-        }
-
-        # Googleで要約取得 & はてなへ投稿
-        result, gemini_stats = summarize_and_upload(gemini_attrs)
-
-        url = result.get("link_alternate", "")
-        title = result.get("title", "")
-        content = result.get("content", "")
-        categories = result.get("categories", [])
-
-        logger.info(f"はてなブログへの投稿に成功しました。")
-        logger.info(f"URL: {url}")
-        logger.info("-" * 50)
-        logger.info(f"投稿タイトル：{title}")
-        logger.info(f"\n{"-" * 20}投稿本文{"-" * 20}")
-        logger.info(f"{content[:100]}")
-        logger.info("-" * 50)
-
-        gemini_fee = ai_client.Gemini_fee()
-        i_fee = gemini_fee.calculate(MODEL, "input", gemini_stats["input_tokens"])
-        th_fee = gemini_fee.calculate(MODEL, "output", gemini_stats["thoughts_tokens"])
-        o_fee = gemini_fee.calculate(MODEL, "output", gemini_stats["output_tokens"])
-        total_fee = i_fee + th_fee + o_fee
-
-        # 為替レートを取得
-        ticker = "USDJPY=X"
-        dy_rate = yf.Ticker(ticker).history(period="1d").Close.iloc[0]
-        total_JPY = total_fee * dy_rate
-
-        columns = [
-            "timestamp",
-            "conversation",
-            "AI_name",
-            "entry_URL",
-            "is_draft",
-            "entry_title",
-            "entry_content",
-            "categories",
-            "custom_prompt",
-            "model",
-            "thinking_budget",
-            "input_letter_count",
-            "output_letter_count",
-            "input_tokens",
-            "input_fee",
-            "thoughts_tokens",
-            "thoughts_fee",
-            "output_tokens",
-            "output_fee",
-            "total_fee (USD)",
-            "total_fee (JPY)",
-            "api_key",
-        ]
-
-        record = [
-            datetime.now().isoformat(),
-            INPUT_PATH.name,
-            ai_name,
-            url,
-            result.get("is_draft"),
-            title[:15],
-            content[:30],
-            ",".join(categories),
-            PROMPT[:20],
-            MODEL,
-            LEVEL,
-            len(conversation),
-            gemini_stats["output_letter_count"],
-            gemini_stats["input_tokens"],
-            i_fee,
-            gemini_stats["thoughts_tokens"],
-            th_fee,
-            gemini_stats["output_tokens"],
-            o_fee,
-            total_fee,
-            total_JPY,
-            "..." + API_KEY[-5:],
-        ]
-
-        output_dir = Path(config["paths"]["output_dir"].strip())
-        output_dir.mkdir(exist_ok=True)
-        summary_path = output_dir / (f"summary_{INPUT_PATH.stem}.txt")
-        csv_path = output_dir / "record_test.csv"
-
-        append_csv(csv_path, columns, record, logger)
-
-        summary_path.write_text(content, encoding="utf-8")
-        logger.info(f"created summary: {content[:100]}")
+        logger.info("アプリケーションは正常に終了しました。")
+        sys.exit(exit_code)
 
     except Exception as e:
         logger.critical(
@@ -273,5 +270,3 @@ if __name__ == "__main__":
             exc_info=True,
         )
         sys.exit(1)
-
-    logger.info("アプリケーションは正常に終了しました。")
