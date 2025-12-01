@@ -1,31 +1,19 @@
-import os
+import logging
 import time
 from datetime import datetime
-from pathlib import Path
 from typing import List, Optional
 
-import yaml
-from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 from pydantic import BaseModel, Field
 
-load_dotenv(override=True)
-config_path = Path("config.yaml")
-config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-
-DEBUG = os.getenv("DEBUG", "").lower() in ("true", "1", "t")
-
-API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-PROMPT = config["ai"]["prompt"]
-MODEL = config["ai"]["model"]
-LEVEL = config["ai"]["thoughts_level"]
+logging.getLogger(__name__)
 
 
 class BlogParts(BaseModel):
     title: str = Field(description="ブログのタイトル。")
     content: str = Field(
-        description=f"ブログの本文（マークダウン形式）。その最後には、「この記事は {MODEL} により自動生成されています」と目立つように注記してください。"
+        description=f"ブログの本文（マークダウン形式）。その最後には、「この記事は Gemini により自動生成されています」と目立つように注記してください。"
     )
     categories: List[str] = Field(description="カテゴリー一覧", max_items=4)
     author: Optional[str]
@@ -61,18 +49,15 @@ def get_summary(
     custom_prompt: str = "please summarize the following conversation for my personal blog article. Keep it under 200 words in Japanese: ",
 ) -> tuple[BlogParts, dict]:
 
-    if DEBUG:
-        print(f"Gemini using API_KEY now: '...{gemini_api_key[-5:]}'")
+    logging.info("Geminiからの応答を待っています。")
+    logging.debug(f"APIキー: ...{gemini_api_key[-5:]}")
 
-    # The client gets the API key from the environment variable `GEMINI_API_KEY` automatically without attribution.
+    # api_key引数なしの場合、環境変数"GEMNI_API_KEY"の値を勝手に読み込む
     client = genai.Client(api_key=gemini_api_key)
 
-    # Turn off thinking:
-    # thinking_config=types.ThinkingConfig(thinking_budget=0) for gemini-2.5-flash
-    # Turn on dynamic thinking:
-    # thinking_config=types.ThinkingConfig(thinking_budget=-1)
     max_retries = 3
     for i in range(max_retries):
+        # generate_contentメソッドは内部的にHTTPレスポンスコード200以外の場合は例外を発生させる
         try:
             response = client.models.generate_content(  # リクエスト
                 model=model,
@@ -88,63 +73,24 @@ def get_summary(
             break
         except Exception as e:
             if "503" in str(e) and i < max_retries - 1:
-                print(f"Server seems to be busy. Retry {5 * (i+1)} seconds later.")
+                logging.info(
+                    f"Googleの計算資源が逼迫しているようです。{5 * (i+1)}秒後にリトライします。"
+                )
                 time.sleep(5 * (i + 1))  # 5秒、10秒、15秒と待つ
             else:
+                logging.info(
+                    f"Googleは現在過負荷のようです。少し時間をおいて再実行する必要があります。"
+                )
+                logging.debug(f"詳細：{e}", exc_info=True)
+                logging.info(f"実行を終了します。")
                 raise
 
-    raw_text = response.text
     contents = BlogParts.model_validate_json(response.text)
-
-    message = (
-        "static thinking"
-        if thoughts_level == 0
-        else (
-            "dynamic thinking"
-            if thoughts_level == -1
-            else f"thoughts limit: {thoughts_level}"
-        )
-    )
-
     stats = {
-        "output_letter_count": len(raw_text),
+        "output_letter_count": len(response.text),
         "input_tokens": response.usage_metadata.prompt_token_count,
         "thoughts_tokens": response.usage_metadata.thoughts_token_count,
         "output_tokens": response.usage_metadata.candidates_token_count,
     }
 
-    if DEBUG:
-        ### リファクタ予定 ###
-        input_tokens = response.usage_metadata.prompt_token_count
-        thoughts_tokens = response.usage_metadata.thoughts_token_count
-        output_tokens = response.usage_metadata.candidates_token_count
-        ####################
-
-        total_output_tokens = thoughts_tokens + output_tokens
-        input_fee = Gemini_fee().calculate(
-            model, token_type="input", tokens=input_tokens
-        )
-        thoughts_fee = Gemini_fee().calculate(model, "output", thoughts_tokens)
-        output_fee = Gemini_fee().calculate(model, "output", output_tokens)
-        total_output_fee = thoughts_fee + output_fee
-
-        print(f"Got your summary from AI: {response.text[:100]}")
-        print(
-            f"Input tokens: {input_tokens},fee: {input_fee}\n \
-              Thoughts tokens: {thoughts_tokens}, fee: {thoughts_fee}\n \
-                Output_tokens: {output_tokens}, fee: {output_fee}\n \
-              Total ouput tokens: {total_output_tokens}, fee: {total_output_fee}\n \
-              Total fee: {input_fee + total_output_fee}\n \
-                Thoughts level: {message} "
-        )
-
     return contents, stats
-
-
-def print_debug_info():
-    """デバッグ部分を移行予定"""
-    pass
-
-
-if __name__ == "__main__":
-    pass
