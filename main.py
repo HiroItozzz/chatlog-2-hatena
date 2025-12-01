@@ -86,10 +86,10 @@ def initialize_config() -> tuple[dict, dict]:
 
     seacret_keys = {
         "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY", ""),
-        "HATENA_CONSUMER_KEY": os.getenv("HATENA_CONSUMER_KEY", ""),
-        "HATENA_CONSUMER_KEY_SECRET": os.getenv("HATENA_CONSUMER_SECRET", ""),
-        "HATENA_ACCESS_TOKEN": os.getenv("HATENA_ACCESS_TOKEN", ""),
-        "HATENA_ACCESS_TOKEN_SECRET": os.getenv("HATENA_ACCESS_TOKEN_SECRET", ""),
+        "client_key": os.getenv("HATENA_CONSUMER_KEY", ""),
+        "client_secret": os.getenv("HATENA_CONSUMER_SECRET", ""),
+        "resource_owner_key": os.getenv("HATENA_ACCESS_TOKEN", ""),
+        "resource_owner_secret": os.getenv("HATENA_ACCESS_TOKEN_SECRET", ""),
     }
 
     # 設定の検証
@@ -132,7 +132,7 @@ def summarize_and_upload(
         updated=blog_parts.updated,  # datetime型, デフォルトは5分後に公開
         is_draft=debug_mode,  # デバッグ時は下書き
     )
-    result = uploader.hatena_uploader(xml_data)  # 辞書型で返却
+    result = uploader.hatena_uploader(xml_data, hatena_seacret_keys)  # 辞書型で返却
     #################################################################
 
     return result, gemini_stats
@@ -152,15 +152,7 @@ def main(
     ai_name = next((p for p in AI_LIST if input_path.name.startswith(p)), "Unknown AI")
 
     conversation = json_loader.json_loader(input_path, ai_name)
-
     gemini_config["conversation"] = conversation
-    gemini_attrs = {
-        "conversation": conversation,
-        "api_key": "",
-        "custom_prompt": PROMPT,
-        "model": MODEL,
-        "thoughts_level": LEVEL,
-    }
 
     # Googleで要約取得 & はてなへ投稿
     result, gemini_stats = summarize_and_upload(
@@ -226,9 +218,9 @@ def main(
         title[:15],
         content[:30],
         ",".join(categories),
-        PROMPT[:20],
-        MODEL,
-        LEVEL,
+        gemini_config["custom_prompt"][:20],
+        gemini_config["model"],
+        gemini_config["thoughts_level"],
         len(conversation),
         gemini_stats["output_letter_count"],
         gemini_stats["input_tokens"],
@@ -239,7 +231,7 @@ def main(
         o_fee,
         total_fee,
         total_JPY,
-        "..." + API_KEY[-5:],
+        "..." + gemini_config["gemini_api_key"][-5:],
     ]
 
     output_dir = Path(config["paths"]["output_dir"].strip())
@@ -266,7 +258,6 @@ if __name__ == "__main__":
     MODEL = config["ai"]["model"]
     LEVEL = config["ai"]["thoughts_level"]
     DEBUG_CONFIG = config["other"]["debug"].lower() in ("true", "1", "t")
-    API_KEY = SEACRET_KEYS["GEMINI_API_KEY"]
 
     # 環境変数の参照結果がFalseの場合のみconfigで上書き
     if DEBUG_ENV:
@@ -280,12 +271,9 @@ if __name__ == "__main__":
         "custom_prompt": PROMPT,
         "model": MODEL,
         "thoughts_level": LEVEL,
-        "gemini_api_key": API_KEY,
+        "gemini_api_key": SEACRET_KEYS.pop("GEMINI_API_KEY"),
     }
-
-    #### リファクタ予定（現状は関数内でCONFIG呼び出し） ###
-    HATENA_SECRET_KEYS = {}
-    ###################################################
+    HATENA_SECRET_KEYS = SEACRET_KEYS
 
     try:
         if len(sys.argv) > 1:

@@ -57,23 +57,12 @@ def xml_unparser(
     return ET.tostring(ROOT, encoding="unicode")
 
 
-def hatena_uploader(entry_xml: str = "") -> dict:
+def hatena_uploader(entry_xml: str, hatena_seacret_keys: dict) -> dict:
     URL = os.getenv(
         "HATENA_BASE_URL", None
     ).strip()  # https://blog.hatena.ne.jp/{はてなID}/{ブログID}/atom/
 
-    # 環境変数を読み込み
-    CONSUMER_KEY = os.getenv("HATENA_CONSUMER_KEY", None).strip()
-    CONSUMER_SECRET = os.getenv("HATENA_CONSUMER_SECRET", None).strip()
-    ACCESS_TOKEN = os.getenv("HATENA_ACCESS_TOKEN", None).strip()
-    ACCESS_TOKEN_SECRET = os.getenv("HATENA_ACCESS_TOKEN_SECRET", None).strip()
-
-    oauth = OAuth1Session(
-        CONSUMER_KEY,
-        client_secret=CONSUMER_SECRET,
-        resource_owner_key=ACCESS_TOKEN,
-        resource_owner_secret=ACCESS_TOKEN_SECRET,
-    )
+    oauth = OAuth1Session(**hatena_seacret_keys)
     response = oauth.post(
         URL, data=entry_xml, headers={"Content-Type": "application/xml; charset=utf-8"}
     )
