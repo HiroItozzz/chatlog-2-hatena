@@ -3,18 +3,20 @@ import os
 from dotenv import load_dotenv
 from requests_oauthlib import OAuth1Session
 
-load_dotenv()
-
-# 管理者用キー（公開鍵+秘密鍵）を取得
-CONSUMER_KEY = os.getenv("HATENA_CONSUMER_KEY", None).strip()
-CONSUMER_SECRET = os.getenv("HATENA_CONSUMER_SECRET", None).strip()
-
 REQUEST_TOKEN_URL = "https://www.hatena.com/oauth/initiate"
+BASE_URL = "https://www.hatena.ne.jp/oauth/authorize"
+
+
+load_dotenv()
+CONSUMER_KEY = os.getenv("HATENA_CONSUMER_KEY", "").strip()
+CONSUMER_SECRET = os.getenv("HATENA_CONSUMER_SECRET", "").strip()
+
 
 # OAuth認証のためにHTTPリクエストの引数をOAuth指定の形式に整形
 oauth = OAuth1Session(
     CONSUMER_KEY, client_secret=CONSUMER_SECRET, callback_uri="oob"
 )  # callback_uriはリダイレクト先を指定する引数。"oob"はそれが存在しないことを表す（"Out of Band）。自作アプリの場合必須
+
 
 # 管理者用キーを使用し個別ユーザー初回認証用のキーのペアを取得
 response = oauth.fetch_request_token(
@@ -27,9 +29,7 @@ resource_owner_key = response.get("oauth_token")
 resource_owner_secret = response.get("oauth_token_secret")
 
 
-BASE_URL = "https://www.hatena.ne.jp/oauth/authorize"
-
-# 人間の手によるOAuth認証（よくあるやつ）
+# 人間の手によるOAuth認証
 authorization_url = oauth.authorization_url(BASE_URL)
 print(
     f"Please go here and authorize, {authorization_url}"

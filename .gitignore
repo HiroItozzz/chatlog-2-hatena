@@ -9,3 +9,5 @@ outputs/
 *.csv
 *.log
 .pytest_cache
+requirements-dev.*
+requirements.ini
