@@ -32,7 +32,7 @@ if not exist ".venv\Scripts\python.exe" (
 )
 
 echo ✓ 仮想環境を確認
-.venv\Scripts\python.exe -c "import requests, yaml, dotenv, yfinance, xmltodict" 2>nul
+.venv\Scripts\python.exe -c "import requests, yaml, dotenv, yfinance" 2>nul
 if %errorlevel% neq 0 (
     echo ❌ 必要なパッケージが不足しています
     echo.
