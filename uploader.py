@@ -72,8 +72,7 @@ def hatena_uploader(entry_xml: str, hatena_seacret_keys: dict) -> dict:
     if response.status_code == 201:
         logger.debug("✓ 投稿成功")
     else:
-        logger.debug(f"✗ エラー: {response.text}")
-    logger.debug(response.text)
+        logger.debug(f"✗ エラー発生。投稿できませんでした。")
 
     root = ET.fromstring(response.text)
     # 名前空間
