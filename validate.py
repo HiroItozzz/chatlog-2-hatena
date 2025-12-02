@@ -20,7 +20,7 @@ def get_nested_config(config_dict, key_path):
         return None
 
 
-def validate_config(config_dict: dict, seacret_keys: dict):
+def validate_config(config_dict: dict, secret_keys: dict):
     """設定ファイルとAPIキーの妥当性を検証"""
     required_keys = ["ai.model", "ai.prompt", "paths.output_dir", "other.debug"]
 
@@ -30,8 +30,8 @@ def validate_config(config_dict: dict, seacret_keys: dict):
             raise ValueError(f"Missing required config: {key}")
 
     # API_KEYの検証
-    for name, seacret_key in seacret_keys.items():
-        if len(seacret_key.strip()) == 0:
+    for name, secret_key in secret_keys.items():
+        if len(secret_key.strip()) == 0:
             raise ValueError(f"{name} is required in environment variables")
 
     # thoughts_levelの範囲チェック
@@ -59,15 +59,16 @@ def initialize_config() -> tuple[dict, dict]:
     except yaml.YAMLError as e:
         raise ValueError(f"Invalid YAML syntax in config file: {e}")
 
-    seacret_keys = {
+    secret_keys = {
         "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY", ""),
         "client_key": os.getenv("HATENA_CONSUMER_KEY", ""),
         "client_secret": os.getenv("HATENA_CONSUMER_SECRET", ""),
         "resource_owner_key": os.getenv("HATENA_ACCESS_TOKEN", ""),
         "resource_owner_secret": os.getenv("HATENA_ACCESS_TOKEN_SECRET", ""),
+        "hatena_entry_url": os.getenv("HATENA_ENTRY_URL", ""),
     }
 
     # 設定の検証
-    validate_config(config, seacret_keys)
+    validate_config(config, secret_keys)
 
-    return config, seacret_keys
+    return config, secret_keys

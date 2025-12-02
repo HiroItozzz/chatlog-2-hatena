@@ -1,7 +1,6 @@
 import logging
 import time
-from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 from google import genai
 from google.genai import types
@@ -10,14 +9,33 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 
 
-class BlogParts(BaseModel):
+class GeminiStructure(BaseModel):
     title: str = Field(description="ブログのタイトル。")
     content: str = Field(
         description=f"ブログの本文（マークダウン形式）。その最後には、「この記事は Gemini により自動生成されています」と目立つように注記してください。"
     )
     categories: List[str] = Field(description="カテゴリー一覧", max_items=4)
-    author: Optional[str]
-    updated: Optional[datetime]
+
+
+class GeminiFee:
+    def __init__(self):
+        self.fees = {
+            "gemini-2.5-flash": {"input": 0.03, "output": 2.5},  # $per 1M tokens
+            "gemini-2.5-pro": {
+                "under_0.2M": {"input": 1.25, "output": 10.00},
+                "over_0.2M": {"input": 2.5, "output": 15.0},
+            },
+        }
+
+    def calculate(self, model: str, token_type: str, tokens: int) -> float:
+        if model == "gemini-2.5-pro":
+            base_fees = self.fees["gemini-2.5-pro"]
+            if tokens <= 200000:
+                return tokens * base_fees["under_0.2M"][token_type] / 1000000
+            else:
+                return tokens * base_fees["over_0.2M"][token_type] / 1000000
+        else:
+            return tokens * self.fees[model][token_type] / 1000000
 
 
 def get_summary(
@@ -26,7 +44,7 @@ def get_summary(
     model: str = "gemini-2.5-pro",
     thoughts_level: int = -1,
     custom_prompt: str = "please summarize the following conversation for my personal blog article. Keep it under 200 words in Japanese: ",
-) -> tuple[BlogParts, dict]:
+) -> tuple[GeminiStructure, dict]:
 
     print("Geminiからの応答を待っています。")
     logger.debug(f"APIリクエスト中。APIキー: ...{gemini_api_key[-5:]}")
@@ -46,12 +64,12 @@ def get_summary(
                         thinking_budget=thoughts_level
                     ),
                     response_mime_type="application/json",  # 構造化出力
-                    response_json_schema=BlogParts.model_json_schema(),
+                    response_json_schema=GeminiStructure.model_json_schema(),
                 ),
             )
             break
         except Exception as e:
-            if "503" in str(e) and i < max_retries - 1:
+            if any(code in str(e) for code in ["500", "503"]) and i < max_retries - 1:
                 logger.info(
                     f"Googleの計算資源が逼迫しているようです。{5 * (i+1)}秒後にリトライします。"
                 )
@@ -66,7 +84,7 @@ def get_summary(
 
     print("Geminiによる要約を受け取りました。")
     try:
-        contents = BlogParts.model_validate_json(response.text)
+        contents = GeminiStructure.model_validate_json(response.text)
         logger.debug("構造化出力のバリデーションに成功しました。")
 
     #### JSONパースによるエラーハンドリング実装予定

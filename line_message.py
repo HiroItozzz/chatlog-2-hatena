@@ -5,11 +5,11 @@ import requests
 logger = logging.getLogger(__name__)
 
 
-def line_messenger(content: int, line_access_token):
+def line_messenger(content: str, line_access_token:str):
 
     URL = "https://api.line.me/v2/bot/message/broadcast"
 
-    logger.debug(len(line_access_token), line_access_token[-5:])
+    logger.debug(f"LINEアクセストークン: ... {line_access_token[-5:]}")
 
     if line_access_token:
         logger.debug("アクセストークンを取得")

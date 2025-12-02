@@ -1,4 +1,4 @@
-# AI設定。
+# 設定
 ai:
   prompt: |
     以下は対話型AIとのやり取りです。この会話から学んだことを、個人ブログ用の学習記録として整理してください。
@@ -12,9 +12,14 @@ ai:
     - 厳守事項：機密情報や個人特定につながる情報は漏らさないでください
 
     会話ログ：
-  model: "gemini-2.5-pro"
+  model: "gemini-2.5-pro" # or "gemini-2.5-flash"
   thoughts_level: -1 # -1 for dynamic thoughts (think thoughts level itself), 256-24576 to set thoughts limit, 0 for thoghtless( for gemini-2.5-flash only)
   max_len_content: 1500 # Geminiが返すはてなブログ本文の最大文字数（データバリデーション）
+
+blog:
+  preset_category:
+    - 自動投稿
+    - AtomPub
 
 # ディレクトリ指定
 paths:

@@ -11,4 +11,3 @@ outputs/
 .pytest_cache
 requirements-dev.*
 requirements.ini
-config.yaml

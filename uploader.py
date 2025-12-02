@@ -1,17 +1,16 @@
 import logging
-import os
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 
+from ai_client import GeminiStructure
 from requests_oauthlib import OAuth1Session
 
 logger = logging.getLogger(__name__)
 
 
 def xml_unparser(
-    title: str,
-    content: str,
-    categories: list | None = None,
+    gemini_structure: GeminiStructure,
+    preset_categories: list = [],
     author: str | None = None,
     updated: datetime | None = None,
     is_draft: bool = False,
@@ -19,14 +18,12 @@ def xml_unparser(
 
     logger.debug(f"{'='*25}xml_unparserの処理開始{'='*25}")
 
-    if categories is None:
-        categories = ["Python", "自動投稿"]
-
+    # 公開時刻設定
     jst = timezone(timedelta(hours=9))
     if updated is None:
-        updated = datetime.now(jst) + timedelta(minutes=5)  # デフォルトで5分後に設定
+        updated = datetime.now(jst)
     elif updated.tzinfo is None:
-        updated = updated.replace(tzinfo=jst)  # timezoneなしの場合jst指定
+        updated = updated.replace(tzinfo=jst)  # timezoneなしの場合JST
 
     ROOT = ET.Element(
         "entry",
@@ -43,29 +40,27 @@ def xml_unparser(
     CONTROL = ET.SubElement(ROOT, "app:control")
     DRAFT = ET.SubElement(CONTROL, "app:draft")
     PREVIEW = ET.SubElement(CONTROL, "app:preview")
-    for cat in categories:
+    for cat in gemini_structure.categories + preset_categories:
         ET.SubElement(ROOT, "category", attrib={"term": cat})
 
-    TITLE.text = title
+    TITLE.text = gemini_structure.title
     UPDATED.text = updated.isoformat()  # timezoneありの場合それに従う
     NAME.text = author
-    CONTENT.text = content
+    CONTENT.text = gemini_structure.content
     DRAFT.text = "yes" if is_draft else "no"
     PREVIEW.text = "no"
 
-    logger.debug(f"{'='*25}☑xml_unparserの処理終了{'='*25}")
+    logger.debug(f"{'='*25}☑ xml_unparserの処理終了{'='*25}")
     return ET.tostring(ROOT, encoding="unicode")
 
 
-def hatena_uploader(entry_xml: str, hatena_seacret_keys: dict) -> dict:
-    URL = os.getenv(
-        "HATENA_BASE_URL", None
-    ).strip()  # https://blog.hatena.ne.jp/{はてなID}/{ブログID}/atom/
+def hatena_uploader(xml_str: str, hatena_secret_keys: dict) -> dict:
+    URL = hatena_secret_keys.pop("hatena_entry_url")
 
     # はてなブログへ投稿
-    oauth = OAuth1Session(**hatena_seacret_keys)
+    oauth = OAuth1Session(**hatena_secret_keys)
     response = oauth.post(
-        URL, data=entry_xml, headers={"Content-Type": "application/xml; charset=utf-8"}
+        URL, data=xml_str, headers={"Content-Type": "application/xml; charset=utf-8"}
     )
 
     logger.debug(f"Status: {response.status_code}")
@@ -102,7 +97,7 @@ def hatena_uploader(entry_xml: str, hatena_seacret_keys: dict) -> dict:
 if __name__ == "__main__":
 
     # sample XML
-    entry_xml = r"""<?xml version="1.0" encoding="utf-8"?>
+    xml_str = r"""<?xml version="1.0" encoding="utf-8"?>
     <entry xmlns="http://www.w3.org/2005/Atom"
         xmlns:app="http://www.w3.org/2007/app">
     <title>TITLE</title>
@@ -118,7 +113,7 @@ if __name__ == "__main__":
     </app:control>
     </entry>"""
 
-    entry_xml = xml_unparser("タイトル", "本文のテスト")
-    data = hatena_uploader(entry_xml)  # 辞書型
+    xml_str = xml_unparser("タイトル", "本文のテスト")
+    data = hatena_uploader(xml_str)  # 辞書型
 
     logger.debug(data)

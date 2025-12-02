@@ -16,7 +16,7 @@ from validate import initialize_config
 logger = logging.getLogger(__name__)
 load_dotenv(override=True)
 
-# .envのDEBUG項目の存在と値でログレベル判定（暫定）
+# .envのDEBUG項目の存在と値でログレベル判定
 try:
     DEBUG_ENV = os.environ.get("DEBUG", "False").lower() in ("true", "t", "1")
     initial_level = logging.DEBUG if DEBUG_ENV else logging.INFO
@@ -34,45 +34,25 @@ logging.basicConfig(
 )
 
 
-class Gemini_fee:
-    def __init__(self):
-        self.fees = {
-            "gemini-2.5-flash": {"input": 0.03, "output": 2.5},  # $per 1M tokens
-            "gemini-2.5-pro": {
-                "under_0.2M": {"input": 1.25, "output": 10.00},
-                "over_0.2M": {"input": 2.5, "output": 15.0},
-            },
-        }
-
-    def calculate(self, model: str, token_type: str, tokens: int) -> float:
-        if model == "gemini-2.5-pro":
-            base_fees = self.fees["gemini-2.5-pro"]
-            if tokens <= 200000:
-                return tokens * base_fees["under_0.2M"][token_type] / 1000000
-            else:
-                return tokens * base_fees["over_0.2M"][token_type] / 1000000
-        else:
-            return tokens * self.fees[model][token_type] / 1000000
-
-
 def summarize_and_upload(
-    gemini_config: dict, hatena_seacret_keys: dict, debug_mode: bool = False
+    preset_categories: list,
+    gemini_config: dict,
+    hatena_secret_keys: dict,
+    debug_mode: bool = False,
 ) -> tuple[dict, dict]:
 
     # GoogleへAPIリクエスト
-    blog_parts, gemini_stats = ai_client.get_summary(**gemini_config)
+    gemini_structure, gemini_stats = ai_client.get_summary(**gemini_config)
 
-    ##### リファクタ予定：hatena_seacret_keysは現在関数内でconfig呼び出し
     # はてなブログへ投稿
-    xml_data = uploader.xml_unparser(
-        title=blog_parts.title,  # タイトル
-        content=blog_parts.content,  # 本文
-        categories=blog_parts.categories + ["自動投稿", "AtomPub"],  # カテゴリ追加指定
-        author=blog_parts.author,  # デフォルトははてなID
-        updated=blog_parts.updated,  # datetime型, デフォルトは5分後に公開
+    xml_str = uploader.xml_unparser(
+        gemini_structure,
+        preset_categories=preset_categories,
+        author=None,  # str | None   Noneの場合自分のはてなID
+        updated=None,  # datetime | None  公開時刻設定。Noneの場合5分後に公開
         is_draft=debug_mode,  # デバッグ時は下書き
     )
-    result = uploader.hatena_uploader(xml_data, hatena_seacret_keys)  # 辞書型で返却
+    result = uploader.hatena_uploader(xml_str, hatena_secret_keys)  # 辞書型で返却
 
     return result, gemini_stats
 
@@ -98,9 +78,10 @@ def append_csv(path: Path, df: pd.DataFrame):
 
 def main(
     input_path: Path,
+    preset_categories: list,
     gemini_config: dict,
-    hatena_seacret_keys: dict,
-    debug_mode: bool = True,
+    hatena_secret_keys: dict,
+    debug_mode: bool = False,
 ):
 
     logger.debug("================================================")
@@ -114,7 +95,7 @@ def main(
 
     # Googleで要約取得 & はてなへ投稿
     result, gemini_stats = summarize_and_upload(
-        gemini_config, hatena_seacret_keys, debug_mode=DEBUG
+        preset_categories, gemini_config, hatena_secret_keys, debug_mode=DEBUG
     )
 
     url = result.get("link_alternate", "")
@@ -131,7 +112,8 @@ def main(
     print(f"{content[:100]}")
     print("-" * 50)
 
-    fee = Gemini_fee()
+    MODEL = gemini_config["model"]
+    fee = ai_client.GeminiFee()
     i_fee = fee.calculate(MODEL, "input", gemini_stats["input_tokens"])
     th_fee = fee.calculate(MODEL, "output", gemini_stats["thoughts_tokens"])
     o_fee = fee.calculate(MODEL, "output", gemini_stats["output_tokens"])
@@ -199,17 +181,13 @@ if __name__ == "__main__":
 
     # config.yamlで設定初期化
     try:
-        config, SEACRET_KEYS = initialize_config()
+        config, SECRET_KEYS = initialize_config()
     except Exception as e:
         logger.critical(f"CONFIG LOADING ERROR: {e}", exc_info=True)
         sys.exit(1)
 
-    PROMPT = config["ai"]["prompt"]
-    MODEL = config["ai"]["model"]
-    LEVEL = config["ai"]["thoughts_level"]
     DEBUG_CONFIG = config["other"]["debug"].lower() in ("true", "1", "t")
-
-    # 環境変数の参照結果がFalseの場合のみconfigで上書き
+    # 環境変数の参照結果がFalseの場合configの値を参照
     if DEBUG_ENV:
         DEBUG = DEBUG_ENV
     else:
@@ -217,13 +195,14 @@ if __name__ == "__main__":
         if DEBUG:
             logging.getLogger().setLevel(logging.DEBUG)
 
+    PRESET_CATEGORIES = config["blog"]["preset_category"]
     GEMINI_CONFIG = {
-        "custom_prompt": PROMPT,
-        "model": MODEL,
-        "thoughts_level": LEVEL,
-        "gemini_api_key": SEACRET_KEYS.pop("GEMINI_API_KEY"),
+        "custom_prompt": config["ai"]["prompt"],
+        "model": config["ai"]["model"],
+        "thoughts_level": config["ai"]["thoughts_level"],
+        "gemini_api_key": SECRET_KEYS.pop("GEMINI_API_KEY"),
     }
-    HATENA_SECRET_KEYS = SEACRET_KEYS
+    HATENA_SECRET_KEYS = SECRET_KEYS
 
     try:
         if len(sys.argv) > 1:
@@ -233,8 +212,12 @@ if __name__ == "__main__":
             logger.info("エラー: ファイル名が正しくありません。実行を終了します")
             sys.exit(1)
 
-        exit_code = main(
-            input_path, GEMINI_CONFIG, HATENA_SECRET_KEYS, debug_mode=DEBUG
+        exit_code = main(  # メイン処理
+            input_path,
+            PRESET_CATEGORIES,
+            GEMINI_CONFIG,
+            HATENA_SECRET_KEYS,
+            debug_mode=DEBUG,
         )
 
         logger.info("アプリケーションは正常に終了しました。")
