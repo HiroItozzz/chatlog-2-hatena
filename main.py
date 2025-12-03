@@ -77,14 +77,20 @@ def append_csv(path: Path, df: pd.DataFrame):
 
 
 def main(
-    preset_categories: list,
-    gemini_config: dict,
-    hatena_secret_keys: dict,
     debug_mode: bool = False,
 ):
 
     logger.debug("================================================")
     logger.debug(f"アプリケーションが起動しました。DEBUGモード: {debug_mode}")
+
+    PRESET_CATEGORIES = config["blog"]["preset_category"]
+    GEMINI_CONFIG = {
+        "custom_prompt": config["ai"]["prompt"],
+        "model": config["ai"]["model"],
+        "thoughts_level": config["ai"]["thoughts_level"],
+        "gemini_api_key": SECRET_KEYS.pop("GEMINI_API_KEY"),
+    }
+    HATENA_SECRET_KEYS = SECRET_KEYS
 
     if len(sys.argv) > 1:
         input_path = Path(sys.argv[1])
@@ -99,11 +105,11 @@ def main(
     )
 
     conversation = json_loader.json_loader(input_path, ai_name)
-    gemini_config["conversation"] = conversation
+    GEMINI_CONFIG["conversation"] = conversation
 
     # Googleで要約取得 & はてなへ投稿
     result, gemini_stats = summarize_and_upload(
-        preset_categories, gemini_config, hatena_secret_keys, debug_mode=DEBUG
+        PRESET_CATEGORIES, GEMINI_CONFIG, HATENA_SECRET_KEYS, debug_mode=DEBUG
     )
 
     url = result.get("link_alternate", "")
@@ -120,7 +126,7 @@ def main(
     print(f"{content[:100]}")
     print("-" * 50)
 
-    MODEL = gemini_config["model"]
+    MODEL = GEMINI_CONFIG["model"]
     fee = ai_client.GeminiFee()
     i_fee = fee.calculate(MODEL, "input", gemini_stats["input_tokens"])
     th_fee = fee.calculate(MODEL, "output", gemini_stats["thoughts_tokens"])
@@ -148,9 +154,9 @@ def main(
             "entry_title": title[:15],
             "entry_content": content[:30],
             "categories": ",".join(categories),
-            "custom_prompt": gemini_config["custom_prompt"][:20],
-            "model": gemini_config["model"],
-            "thinking_budget": gemini_config["thoughts_level"],
+            "custom_prompt": GEMINI_CONFIG["custom_prompt"][:20],
+            "model": GEMINI_CONFIG["model"],
+            "thinking_budget": GEMINI_CONFIG["thoughts_level"],
             "input_letter_count": len(conversation),
             "output_letter_count": gemini_stats["output_letter_count"],
             "input_tokens": gemini_stats["input_tokens"],
@@ -161,7 +167,7 @@ def main(
             "output_fee": o_fee,
             "total_fee (USD)": total_fee,
             "total_fee (JPY)": total_JPY,
-            "api_key": "..." + gemini_config["gemini_api_key"][-5:],
+            "api_key": "..." + GEMINI_CONFIG["gemini_api_key"][-5:],
         },
         index=["vals"],
     )
@@ -195,30 +201,13 @@ if __name__ == "__main__":
         sys.exit(1)
 
     DEBUG_CONFIG = config["other"]["debug"].lower() in ("true", "1", "t")
-    # 環境変数の参照結果がFalseの場合configの値を参照
-    if DEBUG_ENV:
-        DEBUG = DEBUG_ENV
-    else:
-        DEBUG = DEBUG_CONFIG
-        if DEBUG:
-            logging.getLogger().setLevel(logging.DEBUG)
+    DEBUG = DEBUG_ENV if DEBUG_ENV else DEBUG_CONFIG
 
-    PRESET_CATEGORIES = config["blog"]["preset_category"]
-    GEMINI_CONFIG = {
-        "custom_prompt": config["ai"]["prompt"],
-        "model": config["ai"]["model"],
-        "thoughts_level": config["ai"]["thoughts_level"],
-        "gemini_api_key": SECRET_KEYS.pop("GEMINI_API_KEY"),
-    }
-    HATENA_SECRET_KEYS = SECRET_KEYS
+    if DEBUG and not DEBUG_ENV:
+        logging.getLogger().setLevel(logging.DEBUG)
 
     try:
-        exit_code = main(  # メイン処理
-            PRESET_CATEGORIES,
-            GEMINI_CONFIG,
-            HATENA_SECRET_KEYS,
-            debug_mode=DEBUG,
-        )
+        exit_code = main(debug_mode=DEBUG)  # メイン処理
 
         logger.info("アプリケーションは正常に終了しました。")
         sys.exit(exit_code)

@@ -28,6 +28,8 @@ def json_loader(path: Path, ai_name) -> str:
     logger.info(f"{len(messages)}件のメッセージを処理中...")
 
     try:
+        timestamp = None
+
         for message in reversed(messages):  # 逆順
             timestamp = message.get("time", "")
 
