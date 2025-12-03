@@ -77,7 +77,6 @@ def append_csv(path: Path, df: pd.DataFrame):
 
 
 def main(
-    input_path: Path,
     preset_categories: list,
     gemini_config: dict,
     hatena_secret_keys: dict,
@@ -87,8 +86,17 @@ def main(
     logger.debug("================================================")
     logger.debug(f"アプリケーションが起動しました。DEBUGモード: {debug_mode}")
 
+    if len(sys.argv) > 1:
+        input_path = Path(sys.argv[1])
+        logger.info(f"処理を開始します: {input_path.name}")
+    else:
+        logger.info("エラー: 入力が正しくありません。実行を終了します")
+        sys.exit(1)
+
     AI_LIST = ["Claude", "Gemini", "ChatGPT"]
-    ai_name = next((p for p in AI_LIST if input_path.name.startswith(p)), "Unknown AI")
+    ai_name = next(
+        (p for p in AI_LIST if input_path.name.startswith(p + "-")), "Unknown AI"
+    )
 
     conversation = json_loader.json_loader(input_path, ai_name)
     gemini_config["conversation"] = conversation
@@ -133,7 +141,7 @@ def main(
     df = pd.DataFrame(
         {
             "timestamp": datetime.now().isoformat(),
-            "conversation": input_path.name[len(ai_name) + 1 :],
+            "conversation_title": input_path.name.replace(ai_name + "-", ""),
             "AI_name": ai_name,
             "entry_URL": url,
             "is_draft": result.get("is_draft"),
@@ -161,7 +169,7 @@ def main(
     output_dir = Path(config["paths"]["output_dir"].strip())
     output_dir.mkdir(exist_ok=True)
     summary_path = output_dir / (f"summary_{input_path.stem}.txt")
-    csv_path = output_dir / "record_test.csv"
+    csv_path = output_dir / "record.csv"
 
     append_csv(csv_path, df)
 
@@ -205,15 +213,7 @@ if __name__ == "__main__":
     HATENA_SECRET_KEYS = SECRET_KEYS
 
     try:
-        if len(sys.argv) > 1:
-            input_path = Path(sys.argv[1])
-            logger.info(f"処理を開始します: {input_path.name}")
-        else:
-            logger.info("エラー: ファイル名が正しくありません。実行を終了します")
-            sys.exit(1)
-
         exit_code = main(  # メイン処理
-            input_path,
             PRESET_CATEGORIES,
             GEMINI_CONFIG,
             HATENA_SECRET_KEYS,
