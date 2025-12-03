@@ -58,7 +58,7 @@ def json_loader(paths: list[Path], ai_names: list) -> str:
                         f"{'='*25}Detected agent other than You and {ai_name}: {agent} {'='*25}"
                     )
 
-                text = message.get("say")
+                text = message.get("say", "").replace("\n\n", "\n")
                 logs.append(
                     f"{timestamp} \nagent: {agent}\n[message]\n{text} \n\n {'-' * 50}\n"
                 )
