@@ -1,12 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "chatbot-logger"
 version = "0.1.0"
+description = "AI-chatbot conversation logger and blog auto-poster"
+authors = [
+  {name = "Hiroaki Ito", email = "mobiiii24@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.13"
 dependencies = [
+    "requests",
+    "requests-oauthlib",
     "google-genai",
     "pyyaml",
     "yfinance",
     "pydantic",
-    "requests-oauthlib",
     "python-dotenv",
     "pandas"
 ]
@@ -16,8 +27,13 @@ dev = [
     "pytest",
     "black",
     "isort",
+    "mypy"
 ]
 
-[build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
+
+[project.scripts]
+chatbot-logger = "chatbot_logger.__main__:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

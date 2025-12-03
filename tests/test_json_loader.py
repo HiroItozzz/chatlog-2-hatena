@@ -1,10 +1,10 @@
 from pathlib import Path
 
-import json_loader as jl
+from chatbot_logger import json_loader as jl
 
 sample_paths = [
-    Path(r"E:\Dev\Projects\chatbot-logger\sample\ChatGPT-sample.json"),
-    Path(r"E:\Dev\Projects\chatbot-logger\sample\Claude-sample.json"),
+    Path(r"sample\ChatGPT-sample.json"),
+    Path(r"sample\Claude-sample.json"),
 ]
 ai_names = ["ChatGPT", "Claude"]
 

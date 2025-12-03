@@ -1,35 +1,43 @@
+import os
 from pathlib import Path
-from pprint import pprint
 
-import yaml
+import pytest
+from chatbot_logger.uploader import GeminiStructure, hatena_uploader, xml_unparser
 from dotenv import load_dotenv
-from uploader import hatena_uploader, xml_unparser
-
-load_dotenv(override=True)
-config_path = Path("config.yaml")
-config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
 
 
-def test_hatena_uploader():
+def test_uploader():
 
-    # sample XML
-    entry_xml = r"""<?xml version="1.0" encoding="utf-8"?>
-    <entry xmlns="http://www.w3.org/2005/Atom"
-        xmlns:app="http://www.w3.org/2007/app">
-    <title>TITLE</title>
-    <updated>2013-09-02T11:28:23+09:00</updated>  # 未来の投稿の場合指定
-    <author><name>name</name></author>
-    <content type="text/plain">
-        ===========CONTENT===========
-    </content>
-    <category term="Scala" />
-    <app:control>
-        <app:draft>yes</app:draft> # 下書きの場合
-        <app:preview>no</app:preview> #
-    </app:control>
-    </entry>"""
+    load_dotenv(override=True)
 
-    result = hatena_uploader(entry_xml)
-    print(result)
-    assert result
-    assert len(result.keys())
+    """Uploader統合テスト"""
+    # APIキー確認
+    KEYS = {
+        "client_key": os.getenv("HATENA_CONSUMER_KEY", ""),
+        "client_secret": os.getenv("HATENA_CONSUMER_SECRET", ""),
+        "resource_owner_key": os.getenv("HATENA_ACCESS_TOKEN", ""),
+        "resource_owner_secret": os.getenv("HATENA_ACCESS_TOKEN_SECRET", ""),
+        "hatena_entry_url": os.getenv("HATENA_ENTRY_URL", ""),
+    }
+    for key in KEYS.values():
+        print(key[-5:])
+
+    if not all(KEYS.values()):
+        pytest.skip("はてなAPIキーが設定されていません")
+
+    # JSON読み込み
+    path1 = Path("sample/gemini_structure.json")
+    json_text = path1.read_text(encoding="utf-8")
+    gemini_structure = GeminiStructure.model_validate_json(json_text)
+
+    # XML生成
+    xml = xml_unparser(gemini_structure, is_draft=True)
+    # 投稿
+    result = hatena_uploader(xml, KEYS)
+
+    assert result["title"] is not None
+    assert result["is_draft"] == True  # 下書きかどうか確認
+
+
+if __name__ == "__main__":
+    test_uploader()

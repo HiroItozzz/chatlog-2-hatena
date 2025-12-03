@@ -14,7 +14,7 @@ class GeminiStructure(BaseModel):
     content: str = Field(
         description=f"ブログの本文（マークダウン形式）。その最後には、「この記事は Gemini-2.5-pro により自動生成されています」と目立つように注記してください。"
     )
-    categories: List[str] = Field(description="カテゴリー一覧", max_items=4)
+    categories: List[str] = Field(description="カテゴリー一覧", max_length=4)
 
 
 class GeminiFee:
@@ -84,7 +84,7 @@ def get_summary(
 
     print("Geminiによる要約を受け取りました。")
     try:
-        contents = GeminiStructure.model_validate_json(response.text)
+        gemini_structure = GeminiStructure.model_validate_json(response.text)
         logger.debug("構造化出力のバリデーションに成功しました。")
 
     #### JSONパースによるエラーハンドリング実装予定
@@ -103,4 +103,4 @@ def get_summary(
         "output_tokens": response.usage_metadata.candidates_token_count,
     }
 
-    return contents, stats
+    return gemini_structure, stats
