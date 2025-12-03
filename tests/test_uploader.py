@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 import pytest
-from chatbot_logger.uploader import GeminiStructure, hatena_uploader, xml_unparser
+from ch2hatena.uploader import GeminiStructure, hatena_uploader, xml_unparser
 from dotenv import load_dotenv
 
 

@@ -2,7 +2,7 @@ import logging
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 
-from ai_client import GeminiStructure
+from .ai_client import GeminiStructure
 from requests_oauthlib import OAuth1Session
 
 logger = logging.getLogger(__name__)

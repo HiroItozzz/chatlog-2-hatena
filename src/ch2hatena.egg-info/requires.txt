@@ -1,0 +1,13 @@
+requests
+requests-oauthlib
+google-genai
+pyyaml
+yfinance
+pydantic
+python-dotenv
+pandas
+
+[dev]
+pytest
+black
+mypy

@@ -1,0 +1,2 @@
+[console_scripts]
+ch2hatena = ch2hatena.main:main

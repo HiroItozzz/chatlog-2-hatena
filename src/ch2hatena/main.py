@@ -1,22 +1,18 @@
+import os, sys
 import logging
-import os
-import sys
-from datetime import datetime
 from pathlib import Path
-
-import ai_client
-import json_loader
-import line_message
-import pandas as pd
-import uploader
-import yfinance as yf
+from datetime import datetime
 from dotenv import load_dotenv
-from validate import initialize_config
+import pandas as pd
+import yfinance as yf
+
+from . import ai_client, json_loader, line_message, uploader
+from .validate import initialize_config
 
 logger = logging.getLogger(__name__)
 load_dotenv(override=True)
 
-# .envのDEBUG項目の存在と値でログレベル判定
+# .envのDEBUG項目の存在と値でログレベル仮判定
 try:
     DEBUG_ENV = os.environ.get("DEBUG", "False").lower() in ("true", "t", "1")
     initial_level = logging.DEBUG if DEBUG_ENV else logging.INFO
@@ -93,12 +89,23 @@ def append_csv(path: Path, df: pd.DataFrame):
         logger.exception("CSVファイルへの書き込み中にエラーが発生しました。")
 
 
-def main(
-    debug_mode: bool = False,
-):
+def main(input_paths_raw: list):
+
+    # config.yamlで設定初期化
+    try:
+        config, SECRET_KEYS = initialize_config()
+    except Exception as e:
+        logger.critical(f"CONFIG LOADING ERROR: {e}", exc_info=True)
+        sys.exit(1)
+
+    DEBUG_CONFIG = config["other"]["debug"].lower() in ("true", "1", "t")
+    DEBUG = DEBUG_ENV if DEBUG_ENV else DEBUG_CONFIG
 
     logger.debug("================================================")
-    logger.debug(f"アプリケーションが起動しました。DEBUGモード: {debug_mode}")
+    logger.debug(f"アプリケーションが起動しました。DEBUGモード: {DEBUG}")
+
+    if DEBUG and not DEBUG_ENV:
+        logging.getLogger().setLevel(logging.DEBUG)
 
     PRESET_CATEGORIES = config["blog"]["preset_category"]
     GEMINI_CONFIG = {
@@ -108,13 +115,6 @@ def main(
         "gemini_api_key": SECRET_KEYS.pop("GEMINI_API_KEY"),
     }
     HATENA_SECRET_KEYS = SECRET_KEYS
-
-    if len(sys.argv) > 1:
-        input_paths_raw = sys.argv[1:]
-        logger.info(f"処理を開始します: {', '.join(input_paths_raw)}")
-    else:
-        logger.info("エラー: 入力が正しくありません。実行を終了します")
-        sys.exit(1)
 
     AI_LIST = ["Claude", "Gemini", "ChatGPT"]
 
@@ -221,21 +221,15 @@ def main(
 
 if __name__ == "__main__":
 
-    # config.yamlで設定初期化
-    try:
-        config, SECRET_KEYS = initialize_config()
-    except Exception as e:
-        logger.critical(f"CONFIG LOADING ERROR: {e}", exc_info=True)
+    if len(sys.argv) > 1:
+        input_paths_raw = sys.argv[1:]
+        logger.info(f"処理を開始します: {', '.join(input_paths_raw)}")
+    else:
+        logger.info("エラー: 入力が正しくありません。実行を終了します")
         sys.exit(1)
 
-    DEBUG_CONFIG = config["other"]["debug"].lower() in ("true", "1", "t")
-    DEBUG = DEBUG_ENV if DEBUG_ENV else DEBUG_CONFIG
-
-    if DEBUG and not DEBUG_ENV:
-        logging.getLogger().setLevel(logging.DEBUG)
-
     try:
-        exit_code = main(debug_mode=DEBUG)  # メイン処理
+        exit_code = main(input_paths_raw)  # メイン処理
 
         logger.info("アプリケーションは正常に終了しました。")
         sys.exit(exit_code)

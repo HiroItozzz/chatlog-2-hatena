@@ -1,16 +1,16 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools >= 77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "chatbot-logger"
+name = "ch2hatena"
 version = "0.1.0"
 description = "AI-chatbot conversation logger and blog auto-poster"
 authors = [
   {name = "Hiroaki Ito", email = "mobiiii24@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.10"
 dependencies = [
     "requests",
     "requests-oauthlib",
@@ -26,13 +26,12 @@ dependencies = [
 dev = [
     "pytest",
     "black",
-    "isort",
     "mypy"
 ]
 
 
 [project.scripts]
-chatbot-logger = "chatbot_logger.__main__:main"
+ch2hatena = "ch2hatena.main:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

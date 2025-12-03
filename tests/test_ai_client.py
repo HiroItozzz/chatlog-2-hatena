@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from chatbot_logger.ai_client import GeminiStructure, get_summary
+from ch2hatena.ai_client import GeminiStructure, get_summary
 from dotenv import load_dotenv
 
 load_dotenv()
