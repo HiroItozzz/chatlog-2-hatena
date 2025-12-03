@@ -57,6 +57,23 @@ def summarize_and_upload(
     return result, gemini_stats
 
 
+def input_paths_to_title(paths: list[Path], ai_names: list[str]) -> str:
+    """インプットパスのリストをcsv出力用タイトルに処理"""
+    titles = []
+    for idx, (path, ai_name) in enumerate(zip(paths, ai_names), 1):
+        prefix = ai_name + "-"
+        if not path.stem.startswith(prefix):
+            titles.append(f"[{idx}] {path.stem}")
+            continue
+        if len(paths) == 1:
+            titles.append(path.stem.replace(prefix, ""))
+        else:
+            short_name = f"[{idx}] " + path.stem.replace(prefix, "")[:10]
+            titles.append(short_name)
+
+    return " ".join(titles)
+
+
 def append_csv(path: Path, df: pd.DataFrame):
     """pathがなければ作成し、CSVに1行追記"""
     is_new_file = not path.exists()
@@ -93,18 +110,27 @@ def main(
     HATENA_SECRET_KEYS = SECRET_KEYS
 
     if len(sys.argv) > 1:
-        input_path = Path(sys.argv[1])
-        logger.info(f"処理を開始します: {input_path.name}")
+        input_paths_raw = sys.argv[1:]
+        logger.info(f"処理を開始します: {', '.join(input_paths_raw)}")
     else:
         logger.info("エラー: 入力が正しくありません。実行を終了します")
         sys.exit(1)
 
     AI_LIST = ["Claude", "Gemini", "ChatGPT"]
-    ai_name = next(
-        (p for p in AI_LIST if input_path.name.startswith(p + "-")), "Unknown AI"
-    )
 
-    conversation = json_loader.json_loader(input_path, ai_name)
+    input_paths = []
+    ai_names = []
+    for raw_path in input_paths_raw:
+        input_path = Path(raw_path)
+        input_paths.append(input_path)
+        ai_name = next(
+            (p for p in AI_LIST if input_path.name.startswith(p + "-")), "Unknown AI"
+        )
+        ai_names.append(ai_name)
+
+    ### 複数のconversationをAIが読み込みやすい形に修正予定
+    conversation = json_loader.json_loader(input_paths, ai_names)
+
     GEMINI_CONFIG["conversation"] = conversation
 
     # Googleで要約取得 & はてなへ投稿
@@ -147,11 +173,11 @@ def main(
     df = pd.DataFrame(
         {
             "timestamp": datetime.now().isoformat(),
-            "conversation_title": input_path.name.replace(ai_name + "-", ""),
-            "AI_name": ai_name,
+            "conversation_title": input_paths_to_title(input_paths, ai_names),
+            "AI_name": " ".join(ai_names),
             "entry_URL": url,
             "is_draft": result.get("is_draft"),
-            "entry_title": title[:15],
+            "entry_title": title,
             "entry_content": content[:30],
             "categories": ",".join(categories),
             "custom_prompt": GEMINI_CONFIG["custom_prompt"][:20],
@@ -174,7 +200,7 @@ def main(
 
     output_dir = Path(config["paths"]["output_dir"].strip())
     output_dir.mkdir(exist_ok=True)
-    summary_path = output_dir / (f"summary_{input_path.stem}.txt")
+    summary_path = output_dir / (f"{title}.txt")
     csv_path = output_dir / "record.csv"
 
     append_csv(csv_path, df)
