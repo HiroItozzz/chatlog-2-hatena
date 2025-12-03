@@ -1,12 +1,8 @@
 # chatbot-logger
 
 
-<<<<<<< HEAD
-対話型AIのログを記録した特定の形式のJSONファイルを解析、要約し、
+対話型AIのログを記録した特定の形式のJSONファイルを解析、要約し、  
 学習記録としてはてなブログへ自動投稿するツール。  
-=======
-AIとの会話が保存された特定の形式のJSONファイルを解析・要約し、その内容をはてなブログへ自動投稿するためのツール。  
->>>>>>> main
 
 ## 基本的な使い方
 （下準備： 下記Chrome拡張機能でAIとの対話ログ(.json)をDL）
@@ -16,7 +12,6 @@ AIとの会話が保存された特定の形式のJSONファイルを解析・�
 - その内容をはてなブログへ自動投稿
 - LINEで投稿完了通知
 
-<<<<<<< HEAD
 ## 基本的な使い方
 - 下記Chrome拡張機能で2クリックでjsonファイルをDL
 - jsonファイルをショートカットへドラッグアンドドロップ
@@ -26,8 +21,6 @@ AIとの会話が保存された特定の形式のJSONファイルを解析・�
 - LINEで投稿完了通知
 
 - Claude, ChatGPT, Geminiに対応
-=======
->>>>>>> main
 
 ## 実行環境
 
@@ -44,11 +37,7 @@ AIとの会話が保存された特定の形式のJSONファイルを解析・�
 chatbot-logger/
 ├── tests/
 ├── .env.sample
-<<<<<<< HEAD
 ├── README_md
-=======
-├── README.md
->>>>>>> main
 ├── ai_client.py         # Gemini API接続
 ├── config.yaml
 ├── drag_and_drop.bat    # ドラッグ＆ドロップ起動スクリプト
@@ -103,21 +92,11 @@ HATENA_ACCESS_TOKEN_SECRET=Your_access_token_secret
 HATENA_ENTRY_URL=Your_entry_url
 ```
 
-<<<<<<< HEAD
-`token_request.py`でOAuth認証
-
-### 2. drag_and_drop.batにエクスポートしたjsonファイルをドラッグ・アンド・ドロップ
-（標準入力の引数としてmain.pyがファイルパスを受け取る）
-
-### 3. 結果確認
-- LINEでURL確認！アクセス。
-=======
 ### 4. drag_and_drop.batにエクスポートしたjsonファイルをドラッグ・アンド・ドロップ
 （標準入力の引数としてファイルパスを受け取る）
 
 ### 5. 結果確認
 - LINEで通知、投稿内容表示
->>>>>>> main
 - `outputs/`フォルダに最新の投稿とCSVファイルを出力/追記
 
 ## 技術スタック
