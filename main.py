@@ -185,8 +185,10 @@ def main(
     line_text = (
         f"投稿完了です。今日も長い時間お疲れさまでした！\nURL:{url}\nタイトル：{title}"
     )
-    if LINE_ACCESS_TOKEN:
+    try:
         line_message.line_messenger(line_text, LINE_ACCESS_TOKEN)
+    except Exception as e:
+        print("エラー：LINE通知は行われませんでした。")
 
     return 0
 

@@ -1,18 +1,22 @@
 # chatbot-logger
 
-**🚧 開発中のプロジェクト 🚧**
 
+<<<<<<< HEAD
 対話型AIのログを記録した特定の形式のJSONファイルを解析、要約し、
 学習記録としてはてなブログへ自動投稿するツール。  
+=======
+AIとの会話が保存された特定の形式のJSONファイルを解析・要約し、その内容をはてなブログへ自動投稿するためのツール。  
+>>>>>>> main
 
 ## 基本的な使い方
-- 下記Chrome拡張機能で2クリックでjsonファイルをDL
+（下準備： 下記Chrome拡張機能でAIとの対話ログ(.json)をDL）
 - jsonファイルをショートカットへドラッグアンドドロップ
-- その日に行われた一連の会話だけをプログラムが抽出（Claudeログの場合）
+- その日に行われた一連の会話を抽出（Claudeログの場合）
 - 会話をGemini 2.5 proが自動で要約、タイトル、カテゴリーを決定
 - その内容をはてなブログへ自動投稿
 - LINEで投稿完了通知
 
+<<<<<<< HEAD
 ## 基本的な使い方
 - 下記Chrome拡張機能で2クリックでjsonファイルをDL
 - jsonファイルをショートカットへドラッグアンドドロップ
@@ -22,6 +26,8 @@
 - LINEで投稿完了通知
 
 - Claude, ChatGPT, Geminiに対応
+=======
+>>>>>>> main
 
 ## 実行環境
 
@@ -38,7 +44,11 @@
 chatbot-logger/
 ├── tests/
 ├── .env.sample
+<<<<<<< HEAD
 ├── README_md
+=======
+├── README.md
+>>>>>>> main
 ├── ai_client.py         # Gemini API接続
 ├── config.yaml
 ├── drag_and_drop.bat    # ドラッグ＆ドロップ起動スクリプト
@@ -80,12 +90,20 @@ Claude/ChatGPT/Gemini Exporterを使用してClaudeとの対話をjson形式で�
 ```env
 GEMINI_API_KEY=your_gemini_api_key
 HATENA_CONSUMER_KEY=your_consumer_key
+LINE_CHANNEL_ACCESS_TOKEN=your_access_token
 ...
 ```
-#### はてなブログOAuth認証
-はてなブログの`consumer key`, `consumer secret`を取得：
-https://developer.hatena.ne.jp/ja/documents/auth/apis/oauth/consumer
+### 3. はてなブログOAuth認証
+はてなブログの`access token`, `access token secret`を取得：
+https://developer.hatena.ne.jp/ja/documents/auth/apis/oauth/consumer  
+→ `token_request.py`でOAuth認証・取得 / 追記
+```env
+HATENA_ACCESS_TOKEN=Your_access_token
+HATENA_ACCESS_TOKEN_SECRET=Your_access_token_secret
+HATENA_ENTRY_URL=Your_entry_url
+```
 
+<<<<<<< HEAD
 `token_request.py`でOAuth認証
 
 ### 2. drag_and_drop.batにエクスポートしたjsonファイルをドラッグ・アンド・ドロップ
@@ -93,6 +111,13 @@ https://developer.hatena.ne.jp/ja/documents/auth/apis/oauth/consumer
 
 ### 3. 結果確認
 - LINEでURL確認！アクセス。
+=======
+### 4. drag_and_drop.batにエクスポートしたjsonファイルをドラッグ・アンド・ドロップ
+（標準入力の引数としてファイルパスを受け取る）
+
+### 5. 結果確認
+- LINEで通知、投稿内容表示
+>>>>>>> main
 - `outputs/`フォルダに最新の投稿とCSVファイルを出力/追記
 
 ## 技術スタック
@@ -102,7 +127,8 @@ https://developer.hatena.ne.jp/ja/documents/auth/apis/oauth/consumer
 
 ## 🔧 開発予定・課題
 
-- [ ] **AIによるLINE通知メッセージ** - アップロードすると労いの言葉が返ってくるように
+- [ ] **はてな投稿・LINE通知のそれぞれのオンオフを可能に** - 現在は設定検証の範囲が広すぎるため使い勝手が悪い
+- [ ] **LINE通知メッセージ内容強化** - アップロードするとAI生成による好きなタイプの労いの言葉が返ってくるように
 - [ ] **GUI追加** - 設定・実行の簡易化
 - [ ] **GoogleSheets連携** - csv自動追記でどこでもログ確認
 - [ ] **UXの改善** - フォルダ監視...？
@@ -118,23 +144,32 @@ https://developer.hatena.ne.jp/ja/documents/auth/apis/oauth/consumer
 - **はてなブログ投稿**: ブログ記事として投稿
 - **コスト分析**: 入出力トークン使用量と料金記録（JPY換算） ※基本はGemini-2.5-pro 無料枠
 
+## 工夫したこと
+- Gemini構造化出力（`pydantic`を使用）によってGeminiによる出力をjson形へに限定
+  - はてなへの入力（XML形式、タイトル・内容・カテゴリ）との一致を強く保証
+- エラーハンドリング
+  - Chrome拡張機能由来のjson処理、外部接続3回のパイプラインでのエラー原因特定に十分な程度に
+- 定数をメイン処理で定義・辞書に格納し、引数を下層まで受け渡す構成（可読性）
+  - 最後は`**dict`で処理
 
-## このプロジェクトで学んだこと（現時点）
-- エラーログ出力（logging）
-- HTTPメソッドとREST APIの思想
+## このプロジェクトで学んだこと
+- HTTPメソッドとRESTの考え方
 - HTTPレスポンスコードによる場合分けの仕方
-- 定数はメイン処理で定義し下層まで受け渡し
-- XML形式の取り扱い（ElementTree、名前空間）
-- .envとconfigの使い分け
-- gitのbranchとPRの使い方
+- XML形式の取り扱い（ElementTree、名前空間、XPath）
+- ログレベルの使い分け
+- gitのブランチとプルリクエストの使い方
 
 ## 感じたこと
 
-ずっと対話型AIとやり取りしながら1日作業している中で、整理しづらい有用なログがたくさん溜まっており、なにか出来ないかと思っていたのがきっかけでした。  
-当初はフォルダ監視での運用を目標に考えていましたが、ドラッグアンドドロップが個人用途では最適解かもなと思っています。  
-最大の懸念点は拡張機能への依存ですが、将来的にはこの部分も自分で書ければなと思っています。  
-また、今回はVSCodeのコード補完機能を使わずに書きました。リファクタを繰り返す中で徐々に良いロジックになっていくことの、プログラミングの面白さを強く感じた思い出のプロジェクトとなりました。
+ずっと対話型AIとやり取りしながらコードを書いている中で、整理しづらい有用なログが毎日溜まる状況で、これを使ってなにか出来ないかと思っていました。  
+当初はフォルダ監視での運用を目標に考えていたけれども、ドラッグアンドドロップは個人用途では必要十分だと現状では感じています。  
+最大の懸念点は拡張機能への依存ですが、将来的にはこの部分も自分でかけるようになれればなと考えています。  
+また、今回はVSCodeのコード補完機能を使わずに書きました。リファクタを繰り返す中で徐々に良いロジックになっていくことの、プログラミングの面白さを強く感じた思い出のプロジェクトとなりそうです。
 
-## 📝 ライセンス
+## 参考資料
 
-個人プロジェクト（開発中）
+- https://ai.google.dev/gemini-api/docs?hl=ja
+- https://developer.hatena.ne.jp/ja/documents/blog/apis/atom/
+- https://developers.line.biz/ja/reference/messaging-api/#send-broadcast-message
+- https://requests-oauthlib.readthedocs.io/en/latest/oauth1_workflow.html
+- https://qiita.com/jksoft/items/4d57a9282a56c38d0a9c
