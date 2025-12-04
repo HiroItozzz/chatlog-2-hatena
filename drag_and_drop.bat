@@ -46,7 +46,8 @@ if %errorlevel% neq 0 (
     echo 📦 パッケージをインストールします...
     .venv\Scripts\python.exe -m pip install -e .
     if %errorlevel% neq 0 (
-        echo ❌ インストールに失敗しました
+        echo ❌ インストールに失敗しました。3秒後に終了します。
+        timeout /t 3
         exit /b 1
     )
     echo ✓ インストール完了

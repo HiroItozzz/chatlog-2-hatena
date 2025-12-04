@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from ch2hatena import json_loader as jl
+from cha2hatena import json_loader as jl
 
 sample_paths = [
     Path(r"sample\ChatGPT-sample.json"),

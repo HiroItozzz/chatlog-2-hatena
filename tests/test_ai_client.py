@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from ch2hatena.ai_client import GeminiStructure, get_summary
+from cha2hatena.ai_client import GeminiStructure, get_summary
 from dotenv import load_dotenv
 
 load_dotenv()
