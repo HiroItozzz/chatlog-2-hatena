@@ -2,15 +2,22 @@ from pathlib import Path
 
 import json_loader as jl
 
-sample_path = Path(r"E:\Dev\Projects\chatbot-logger\sample\ChatGPT-sample.json")
+sample_paths = [
+    Path(r"E:\Dev\Projects\chatbot-logger\sample\ChatGPT-sample.json"),
+    Path(r"E:\Dev\Projects\chatbot-logger\sample\Claude-sample.json"),
+]
+ai_names = ["ChatGPT", "Claude"]
 
 
 def test_json_loader():
-    result = jl.json_loader(sample_path)
+    result = jl.json_loader(sample_paths, ai_names)
+    with open("outputs/test_json_loader.txt", "w", encoding="utf-8") as f:
+        f.write(result)
+
     assert isinstance(result, str)
     assert len(result) > 0
 
 
 if __name__ == "__main__":
-    a = jl.json_loader(sample_path)
+    a = jl.json_loader(sample_paths, ai_names)
     print(a[:200])

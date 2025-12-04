@@ -10,4 +10,4 @@ outputs/
 requirements-dev.*
 requirements.ini
 pytest.ini
-.mypy_chache
+.mypy_cache

@@ -57,6 +57,23 @@ def summarize_and_upload(
     return result, gemini_stats
 
 
+def input_paths_to_title(paths: list[Path], ai_names: list[str]) -> str:
+    """インプットパスのリストをcsv出力用タイトルに処理"""
+    titles = []
+    for idx, (path, ai_name) in enumerate(zip(paths, ai_names), 1):
+        prefix = ai_name + "-"
+        if not path.stem.startswith(prefix):
+            titles.append(f"[{idx}] {path.stem}")
+            continue
+        if len(paths) == 1:
+            titles.append(path.stem.replace(prefix, ""))
+        else:
+            short_name = f"[{idx}] " + path.stem.replace(prefix, "")[:10]
+            titles.append(short_name)
+
+    return " ".join(titles)
+
+
 def append_csv(path: Path, df: pd.DataFrame):
     """pathがなければ作成し、CSVに1行追記"""
     is_new_file = not path.exists()
@@ -77,25 +94,48 @@ def append_csv(path: Path, df: pd.DataFrame):
 
 
 def main(
-    input_path: Path,
-    preset_categories: list,
-    gemini_config: dict,
-    hatena_secret_keys: dict,
     debug_mode: bool = False,
 ):
 
     logger.debug("================================================")
     logger.debug(f"アプリケーションが起動しました。DEBUGモード: {debug_mode}")
 
-    AI_LIST = ["Claude", "Gemini", "ChatGPT"]
-    ai_name = next((p for p in AI_LIST if input_path.name.startswith(p)), "Unknown AI")
+    PRESET_CATEGORIES = config["blog"]["preset_category"]
+    GEMINI_CONFIG = {
+        "custom_prompt": config["ai"]["prompt"],
+        "model": config["ai"]["model"],
+        "thoughts_level": config["ai"]["thoughts_level"],
+        "gemini_api_key": SECRET_KEYS.pop("GEMINI_API_KEY"),
+    }
+    HATENA_SECRET_KEYS = SECRET_KEYS
 
-    conversation = json_loader.json_loader(input_path, ai_name)
-    gemini_config["conversation"] = conversation
+    if len(sys.argv) > 1:
+        input_paths_raw = sys.argv[1:]
+        logger.info(f"処理を開始します: {', '.join(input_paths_raw)}")
+    else:
+        logger.info("エラー: 入力が正しくありません。実行を終了します")
+        sys.exit(1)
+
+    AI_LIST = ["Claude", "Gemini", "ChatGPT"]
+
+    input_paths = []
+    ai_names = []
+    for raw_path in input_paths_raw:
+        input_path = Path(raw_path)
+        input_paths.append(input_path)
+        ai_name = next(
+            (p for p in AI_LIST if input_path.name.startswith(p + "-")), "Unknown AI"
+        )
+        ai_names.append(ai_name)
+
+    ### 複数のconversationをAIが読み込みやすい形に修正予定
+    conversation = json_loader.json_loader(input_paths, ai_names)
+
+    GEMINI_CONFIG["conversation"] = conversation
 
     # Googleで要約取得 & はてなへ投稿
     result, gemini_stats = summarize_and_upload(
-        preset_categories, gemini_config, hatena_secret_keys, debug_mode=DEBUG
+        PRESET_CATEGORIES, GEMINI_CONFIG, HATENA_SECRET_KEYS, debug_mode=DEBUG
     )
 
     url = result.get("link_alternate", "")
@@ -112,7 +152,7 @@ def main(
     print(f"{content[:100]}")
     print("-" * 50)
 
-    MODEL = gemini_config["model"]
+    MODEL = GEMINI_CONFIG["model"]
     fee = ai_client.GeminiFee()
     i_fee = fee.calculate(MODEL, "input", gemini_stats["input_tokens"])
     th_fee = fee.calculate(MODEL, "output", gemini_stats["thoughts_tokens"])
@@ -133,16 +173,16 @@ def main(
     df = pd.DataFrame(
         {
             "timestamp": datetime.now().isoformat(),
-            "conversation": input_path.name[len(ai_name) + 1 :],
-            "AI_name": ai_name,
+            "conversation_title": input_paths_to_title(input_paths, ai_names),
+            "AI_name": " ".join(ai_names),
             "entry_URL": url,
             "is_draft": result.get("is_draft"),
-            "entry_title": title[:15],
+            "entry_title": title,
             "entry_content": content[:30],
             "categories": ",".join(categories),
-            "custom_prompt": gemini_config["custom_prompt"][:20],
-            "model": gemini_config["model"],
-            "thinking_budget": gemini_config["thoughts_level"],
+            "custom_prompt": GEMINI_CONFIG["custom_prompt"][:20],
+            "model": GEMINI_CONFIG["model"],
+            "thinking_budget": GEMINI_CONFIG["thoughts_level"],
             "input_letter_count": len(conversation),
             "output_letter_count": gemini_stats["output_letter_count"],
             "input_tokens": gemini_stats["input_tokens"],
@@ -153,15 +193,15 @@ def main(
             "output_fee": o_fee,
             "total_fee (USD)": total_fee,
             "total_fee (JPY)": total_JPY,
-            "api_key": "..." + gemini_config["gemini_api_key"][-5:],
+            "api_key": "..." + GEMINI_CONFIG["gemini_api_key"][-5:],
         },
         index=["vals"],
     )
 
     output_dir = Path(config["paths"]["output_dir"].strip())
     output_dir.mkdir(exist_ok=True)
-    summary_path = output_dir / (f"summary_{input_path.stem}.txt")
-    csv_path = output_dir / "record_test.csv"
+    summary_path = output_dir / (f"{title}.txt")
+    csv_path = output_dir / "record.csv"
 
     append_csv(csv_path, df)
 
@@ -189,38 +229,13 @@ if __name__ == "__main__":
         sys.exit(1)
 
     DEBUG_CONFIG = config["other"]["debug"].lower() in ("true", "1", "t")
-    # 環境変数の参照結果がFalseの場合configの値を参照
-    if DEBUG_ENV:
-        DEBUG = DEBUG_ENV
-    else:
-        DEBUG = DEBUG_CONFIG
-        if DEBUG:
-            logging.getLogger().setLevel(logging.DEBUG)
+    DEBUG = DEBUG_ENV if DEBUG_ENV else DEBUG_CONFIG
 
-    PRESET_CATEGORIES = config["blog"]["preset_category"]
-    GEMINI_CONFIG = {
-        "custom_prompt": config["ai"]["prompt"],
-        "model": config["ai"]["model"],
-        "thoughts_level": config["ai"]["thoughts_level"],
-        "gemini_api_key": SECRET_KEYS.pop("GEMINI_API_KEY"),
-    }
-    HATENA_SECRET_KEYS = SECRET_KEYS
+    if DEBUG and not DEBUG_ENV:
+        logging.getLogger().setLevel(logging.DEBUG)
 
     try:
-        if len(sys.argv) > 1:
-            input_path = Path(sys.argv[1])
-            logger.info(f"処理を開始します: {input_path.name}")
-        else:
-            logger.info("エラー: ファイル名が正しくありません。実行を終了します")
-            sys.exit(1)
-
-        exit_code = main(  # メイン処理
-            input_path,
-            PRESET_CATEGORIES,
-            GEMINI_CONFIG,
-            HATENA_SECRET_KEYS,
-            debug_mode=DEBUG,
-        )
+        exit_code = main(debug_mode=DEBUG)  # メイン処理
 
         logger.info("アプリケーションは正常に終了しました。")
         sys.exit(exit_code)

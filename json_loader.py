@@ -6,68 +6,85 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
-def json_loader(path: Path, ai_name) -> str:
+def json_loader(paths: list[Path], ai_names: list) -> str:
 
-    logger.info(f"ファイルを読み込みます: {path.name}")
+    logger.info(f"{len(paths)}個のjsonファイルの読み込みを開始します")
 
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        messages = data["messages"]
-    except KeyError as e:
-        raise KeyError(f"エラー： jsonファイルの構成を確認してください - {path}") from e
-    except json.JSONDecodeError as e:
-        raise ValueError(f"エラー：ファイル形式を確認してください - {path.name}") from e
+    conversations = []
+    for idx, (path, ai_name) in enumerate(zip(paths, ai_names), 1):
+        logger.debug(f"{idx}個目のファイルを読み込みます: {path.name}")
 
-    dt_format = "%Y/%m/%d %H:%M:%S"
-    latest = messages[-1].get("time", "")
-    latest_dt = datetime.strptime(latest, dt_format) if latest else None
-    # 初期化
-    previous_dt = latest_dt
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            messages = data["messages"]
+        except KeyError as e:
+            raise KeyError(
+                f"エラー： jsonファイルの構成を確認してください - {path}"
+            ) from e
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"エラー：ファイル形式を確認してください - {path.name}"
+            ) from e
 
-    logs = []
-    logger.info(f"{len(messages)}件のメッセージを処理中...")
+        dt_format = "%Y/%m/%d %H:%M:%S"
+        latest = messages[-1].get("time", "")
+        latest_dt = datetime.strptime(latest, dt_format) if latest else None
+        # 初期化
+        previous_dt = latest_dt
+        logs = []
 
-    try:
-        for message in reversed(messages):  # 逆順
-            timestamp = message.get("time", "")
+        logger.info(f"{len(messages)}件のメッセージを処理中...")
 
-            # 当日のメッセージではないかつ3時間以上時間が空いた場合ループを抜ける
-            if timestamp:
-                msg_dt = datetime.strptime(timestamp, dt_format)
-                if msg_dt.date() != latest_dt.date():
-                    if previous_dt - msg_dt > timedelta(hours=3):
-                        break
+        try:
+            timestamp = None
 
-            if message.get("role") == "Prompt":
-                agent = "You"
-            elif message.get("role") == "Response":
-                agent = ai_name
-            else:
-                agent = message.get("role")
-                logger.debug(
-                    f"{'='*25}Detected agent other than You and {ai_name}: {agent} {'='*25}"
+            for message in reversed(messages):  # 逆順
+                timestamp = message.get("time", "")
+
+                # 当日のメッセージではないかつ3時間以上時間が空いた場合ループを抜ける
+                if timestamp:
+                    msg_dt = datetime.strptime(timestamp, dt_format)
+                    if msg_dt.date() != latest_dt.date():
+                        if previous_dt - msg_dt > timedelta(hours=3):
+                            break
+
+                if message.get("role") == "Prompt":
+                    agent = "You"
+                elif message.get("role") == "Response":
+                    agent = ai_name
+                else:
+                    agent = message.get("role")
+                    logger.debug(
+                        f"{'='*25}Detected agent other than You and {ai_name}: {agent} {'='*25}"
+                    )
+
+                text = message.get("say")
+                logs.append(
+                    f"{timestamp} \nagent: {agent}\n[message]\n{text} \n\n {'-' * 50}\n"
                 )
 
-            text = message.get("say")
-            logs.append(
-                f"{timestamp} \nagent: {agent}\n[message]\n{text} \n\n {'-' * 50}\n"
-            )
+                if timestamp:
+                    previous_dt = msg_dt
 
-            if timestamp:
-                previous_dt = msg_dt
+            if timestamp is None:
+                print(
+                    f"{path.name}の会話履歴に時刻情報がありません。すべての会話を取得します。"
+                )
 
-        if timestamp is None:
-            print("会話履歴に時刻情報がありません。すべての会話を取得します。")
+            logger.info(f"{len(logs)}件の発言を取得: {path.name}")
+            print(f"{'='*25}最初のメッセージ{'='*25}\n{logs[0][:100]}")
+            print(f"{'='*25}最後のメッセージ{'='*25}\n{logs[-1][:100]}")
+            print("=" * 60)
 
-    except KeyError as e:
-        raise KeyError(f"エラー： jsonファイルの構成を確認してください - {path}") from e
+        except KeyError as e:
+            raise KeyError(
+                f"エラー： jsonファイルの構成を確認してください - {path}"
+            ) from e
 
-    conversation = "\n".join(logs[::-1])  # 順番を戻す
+        logs.append(f"{'=' * 20} {idx}個目の会話 {'='*20}\n\n")
+        conversation = "\n".join(logs[::-1])  # 順番を戻す
+        conversations.append(conversation)
 
-    logger.info(f"{len(logs)}件の発言を取得しました。")
-    print(f"{'='*25}最初のメッセージ{'='*25}\n{logs[0][:100]}")
-    print(f"{'='*25}最後のメッセージ{'='*25}\n{logs[-1][:100]}")
-    print("=" * 60)
-    print("☑ jsonをテキストに変換しました。\n")
+    logger.info(f"☑ {len(paths)}件のjsonファイルをテキストに変換しました。\n")
 
-    return conversation
+    return "\n\n\n".join(conversations)
