@@ -13,3 +13,4 @@ pytest.ini
 *.egg-info/
 dist/
 build/
+.python-version
