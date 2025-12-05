@@ -1,6 +1,7 @@
 import logging
-from datetime import datetime, timedelta, timezone
 import xml.etree.ElementTree as ET
+from datetime import datetime, timedelta, timezone
+
 from requests_oauthlib import OAuth1Session
 
 logger = logging.getLogger(__name__)
@@ -60,9 +61,7 @@ def hatena_oauth(xml_str: str, hatena_secret_keys: dict) -> dict:
 
     URL = hatena_secret_keys.pop("hatena_entry_url")
     oauth = OAuth1Session(**hatena_secret_keys)
-    response = oauth.post(
-        URL, data=xml_str, headers={"Content-Type": "application/xml; charset=utf-8"}
-    )
+    response = oauth.post(URL, data=xml_str, headers={"Content-Type": "application/xml; charset=utf-8"})
 
     logger.debug(f"Status: {response.status_code}")
     if response.status_code == 201:
@@ -91,7 +90,7 @@ def parse_response(response: str) -> dict:
 
     response_dict = {
         # Atom名前空間の要素
-        "title": root.find("{http://www.w3.org/2005/Atom}title").text,
+        "title": root.find("{http://www.w3.org/2005/Atom}title").text,  # XML名前空間の実体
         "author": root.find("atom:author/atom:name", NS).text,
         "content": root.find("atom:content", NS).text,
         "time": datetime.fromisoformat(root.find("atom:updated", NS).text),
@@ -115,9 +114,7 @@ def blog_post(
     is_draft: bool = False,
 ) -> dict:
 
-    xml_entry = xml_unparser(
-        title, content, categories, preset_categories, author, updated, is_draft
-    )
+    xml_entry = xml_unparser(title, content, categories, preset_categories, author, updated, is_draft)
     res = hatena_oauth(xml_entry, hatena_secret_keys)
 
     return parse_response(res)

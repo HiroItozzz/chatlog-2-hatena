@@ -24,43 +24,26 @@ AIとの会話が保存された特定の形式のJSONファイルを解析・�
 
 
 ## 📁 プロジェクト構成
-
 ```
 chatlog-2-Hatena/
-├── sample/                          # サンプルファイル・テストデータ
-├── src/
-│   └── cha2hatena/
-│       ├── __init__.py              
-│       ├── __main__.py              
-│       ├── ai_client.py             # Gemini API接続・構造化出力
-│       ├── json_loader.py           # JSONファイル処理・会話抽出
-│       ├── line_message.py          # LINE通知モジュール
-│       ├── main.py                  # メインロジック
-│       ├── hatenablog_poster.py     # はてなブログ投稿機能
-│       └── validate.py              # 設定検証・初期化
-├── tests/         
-├── .env.sample                      # 環境変数テンプレート
-├── .gitignore
-├── LICENSE
-├── README.md
-├── config.yaml                      # アプリケーション設定
-├── drag_and_drop.bat                # ドラッグ＆ドロップ起動スクリプト（Windows）
-├── pyproject.tom
-├── requirements.txt                 # 依存関係
-└── token_request.py                 # はてな初回OAuth認証用スクリプト
+├── src/cha2hatena/          # メインパッケージ
+├── sample/                  # サンプルファイル
+├── tests/                   # テストコード
+├── .env.sample              # 環境変数テンプレート
+├── config.yaml              # アプリケーション設定
+├── drag_and_drop.bat        # Windows用起動スクリプト
+├── requirements.txt         # 依存関係
+└── token_request.py         # はてな初回OAuth認証用（最初に1度だけ実行）
 ```
-
-
 ## 📋 セットアップ
 
-### 前提条件
-- Python 3.10以上がインストール済み
-
-### 仮想環境構築 (Windows)
 ```bash
+# 仮想環境を構築 (Windows)
 python -m venv .venv
-.venv\Scripts\activate.bat
-pip install -r requirements.txt
+.venv\Scripts\activate
+
+# インストール
+pip install -e .
 ```
 
 ## 📖 使用方法
@@ -83,7 +66,7 @@ HATENA_CONSUMER_SECRET=your_consumer_secret
 ```
 
 ### 3. はてなブログOAuth認証
-はてなブログの`access token`、`access token secret`を取得：
+はてなブログの`access token`、`access token secret`を取得、`.env`で設定：
 
 1. https://developer.hatena.ne.jp/ja/documents/auth/apis/oauth/consumer を参照
 2. `token_request.py`を実行してOAuth認証フローを完了
@@ -109,24 +92,23 @@ blog:
 
 ### 5. 実行方法
 
-**ドラッグアンドドロップ（推奨・Windows）:**
-- `drag_and_drop.bat`にエクスポートしたJSONファイルをドラッグ&ドロップ
-- 仮想環境の存在確認とパッケージ依存関係の自動チェック機能付き
+**ドラッグアンドドロップ（Windows）:**
+- `drag_and_drop.bat`にエクスポートしたJSONファイル（複数可）をドラッグ&ドロップ
 
-**コマンドラインでの実行:**
+**コマンドライン:**
+```bash
+cha2hatena file1.json file2.json file3.json
+```
+
 ```bash
 python -m cha2hatena path/to/conversation.json
 ```
 
-複数ファイルも可能：
-```bash
-python -m cha2hatena file1.json file2.json file3.json
-```
 
 ### 6. 結果確認
-- LINEで投稿完了通知が送信される
-- `outputs/record.csv` に実行履歴・コスト（トークン数と料金）が記録される
-- `outputs/{title}.txt` に投稿本文がテキストとして保存される
+- LINEで投稿完了通知を送信
+- `outputs/record.csv` に実行履歴・コスト（トークン数と料金）を記録
+- `outputs/{title}.txt` に投稿本文をテキストとして保存
 
 ## 技術スタック
 - OAuth 1.0a (requests-oauthlib)
@@ -168,7 +150,7 @@ python -m cha2hatena file1.json file2.json file3.json
 - XML形式の取り扱い（ElementTree、名前空間、XPath）
 - ログレベルの使い分け
 - gitのブランチとプルリクエストの使い方
-- Pythonパッケージング（`__main__.py`の意味、pyproject.toml）
+- パッケージングの方法（`__main__.py`の意味、pyproject.toml）
 
 ## 感じたこと
 

@@ -14,15 +14,9 @@ def line_messenger(content: str, line_access_token: str):
     if line_access_token:
         logger.debug("アクセストークンを取得")
 
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer <{line_access_token}>",
-    }
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer <{line_access_token}>"}
 
-    message = {
-        "type": "text",
-        "text": content,
-    }
+    message = {"type": "text", "text": content}
     body = {"messages": [message]}
 
     res = requests.post(URL, headers=headers, json=body)

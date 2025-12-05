@@ -49,3 +49,6 @@ cha2hatena = "cha2hatena.main:main"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.black]
+line-length = 120

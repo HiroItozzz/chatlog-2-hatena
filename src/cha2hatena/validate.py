@@ -33,17 +33,12 @@ def validate_config(config_dict: dict, secret_keys: dict):
     for idx, (name, secret_key) in enumerate(secret_keys.items()):
         if len(secret_key.strip()) == 0 or secret_key.strip().lower().startswith("your"):
             if idx == 0:
-                raise ValueError(
-                    f"{name}が見つかりませんでした。.envでキーを設定する必要があります。"
-                )
+                raise ValueError(f"{name}が見つかりませんでした。.envでキーを設定する必要があります。")
             elif 0 < idx <= 2:
                 print(f"{name}が見つかりませんでした。Geminiによる要約を試みます。")
                 break
             elif 2 < idx <= 4:
-                print(
-                    f"{name}が見つかりませんでした。\
-                    ブログを投稿するにははてなブログの初回認証を行う必要があります。"
-                )
+                print(f"{name}が見つかりませんでした。ブログを投稿するにははてなブログの初回認証を行う必要があります。")
                 print("Geminiによる要約を試みます。")
                 break
             else:

@@ -42,9 +42,7 @@ def get_agent(message: str, ai_name: str) -> str:
     return agent
 
 
-def convert_to_str(
-    messages: dict, ai_name: str, timestamp: datetime | None
-) -> tuple[str, datetime | None]:
+def convert_to_str(messages: dict, ai_name: str) -> tuple[str, datetime | None]:
     """jsonの本丸を処理"""
 
     logger.info(f"{len(messages)}件のメッセージを処理中...")
@@ -97,11 +95,9 @@ def json_loader(paths: list[Path]) -> list[str, list]:
         except json.JSONDecodeError as e:
             raise ValueError(f"エラー：ファイル形式を確認してください - {path.name}") from e
 
-        timestamp = None
-
         # 会話の抽出→文字列へ
         try:
-            logs, timestamp = convert_to_str(messages, ai_name, timestamp)
+            logs, timestamp = convert_to_str(messages, ai_name)
         except KeyError as e:
             raise KeyError(f"エラー： jsonファイルの構成を確認してください - {path}") from e
 
@@ -114,9 +110,9 @@ def json_loader(paths: list[Path]) -> list[str, list]:
         conversations.append(conversation)
         ai_names.append(ai_name)
 
-        logger.info(f"{len(logs)}件の発言を取得: {path.name}")
-        print(f"{'='*25}最初のメッセージ{'='*25}\n{logs[0][:100]}")
-        print(f"{'='*25}最後のメッセージ{'='*25}\n{logs[-1][:100]}")
+        logger.info(f"{len(logs)-1}件の発言を取得: {path.name}")
+        print(f"{'='*25}最初のメッセージ{'='*25}\n{logs[-1][:100]}")
+        print(f"{'='*25}最後のメッセージ{'='*25}\n{logs[0][:100]}")
         print("=" * 60)
 
     logger.info(f"☑ {len(paths)}件のjsonファイルをテキストに変換しました。\n")

@@ -1,11 +1,11 @@
+import json
 import logging
 import time
-import json
+from typing import List
 
 from google import genai
 from google.genai import types
 from pydantic import BaseModel, Field
-from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -69,14 +69,10 @@ def get_summary(
             break
         except Exception as e:
             if any(code in str(e) for code in ["500", "503"]) and i < max_retries - 1:
-                logger.info(
-                    f"Googleの計算資源が逼迫しているようです。{5 * (i+1)}秒後にリトライします。"
-                )
+                logger.info(f"Googleの計算資源が逼迫しているようです。{5 * (i+1)}秒後にリトライします。")
                 time.sleep(5 * (i + 1))  # 5秒、10秒、15秒と待つ
             else:
-                logger.info(
-                    f"Googleは現在過負荷のようです。少し時間をおいて再実行する必要があります。"
-                )
+                logger.info(f"Googleは現在過負荷のようです。少し時間をおいて再実行する必要があります。")
                 logger.debug(f"詳細：{e}", exc_info=True)
                 logger.info(f"実行を中断します。")
                 raise

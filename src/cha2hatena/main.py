@@ -1,13 +1,16 @@
-import os, sys
 import logging
-from pathlib import Path
+import os
+import sys
 from datetime import datetime
-from dotenv import load_dotenv
+from pathlib import Path
+
 import pandas as pd
 import yfinance as yf
+from dotenv import load_dotenv
 
-from . import ai_client, hatenablog_poster, line_message
+from . import ai_client, hatenablog_poster
 from . import json_loader as jl
+from . import line_message
 from .validate import initialize_config
 
 logger = logging.getLogger(__name__)
@@ -187,7 +190,7 @@ def main():
         csv_path = csv_dir / "record.csv"
         summary_dir = csv_dir / "summary"
         summary_dir.mkdir(exist_ok=True)
-        summary_path = summary_dir / (f"{summary_file_name}.txt")
+        summary_path = summary_dir / (f"{summary_file_name.replace('/', ", ")}.txt")
         # 出力
         append_csv(csv_path, df)
         summary_path.write_text(content, encoding="utf-8")
