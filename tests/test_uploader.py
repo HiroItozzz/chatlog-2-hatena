@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 import pytest
-from cha2hatena.uploader import GeminiStructure, hatena_uploader, xml_unparser
+from cha2hatena.hatenablog_poster import GeminiStructure, hatena_uploader, xml_unparser
 from dotenv import load_dotenv
 
 

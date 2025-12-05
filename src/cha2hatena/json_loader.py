@@ -115,8 +115,8 @@ def json_loader(paths: list[Path]) -> list[str, list]:
         ai_names.append(ai_name)
 
         logger.info(f"{len(logs)}件の発言を取得: {path.name}")
-        print(f"{'='*25}最初のメッセージ{'='*25}\n{logs[0][:100]}")
-        print(f"{'='*25}最後のメッセージ{'='*25}\n{logs[-1][:100]}")
+        print(f"{'='*25}最初のメッセージ{'='*25}\n{logs[-1][:100]}")
+        print(f"{'='*25}最後のメッセージ{'='*25}\n{logs[0][:100]}")
         print("=" * 60)
 
     logger.info(f"☑ {len(paths)}件のjsonファイルをテキストに変換しました。\n")

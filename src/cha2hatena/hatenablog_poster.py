@@ -1,20 +1,21 @@
 import logging
-import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
-
-from .ai_client import GeminiStructure
+import xml.etree.ElementTree as ET
 from requests_oauthlib import OAuth1Session
 
 logger = logging.getLogger(__name__)
 
 
 def xml_unparser(
-    gemini_structure: GeminiStructure,
+    title: str,
+    content: str,
+    categories: list,
     preset_categories: list = [],
     author: str | None = None,
     updated: datetime | None = None,
     is_draft: bool = False,
 ) -> str:
+    """はてなブログ投稿リクエストの形式へ変換"""
 
     logger.debug(f"{'='*25}xml_unparserの処理開始{'='*25}")
 
@@ -40,13 +41,13 @@ def xml_unparser(
     CONTROL = ET.SubElement(ROOT, "app:control")
     DRAFT = ET.SubElement(CONTROL, "app:draft")
     PREVIEW = ET.SubElement(CONTROL, "app:preview")
-    for cat in gemini_structure.categories + preset_categories:
+    for cat in categories + preset_categories:
         ET.SubElement(ROOT, "category", attrib={"term": cat})
 
-    TITLE.text = gemini_structure.title
+    TITLE.text = title
     UPDATED.text = updated.isoformat()  # timezoneありの場合それに従う
     NAME.text = author
-    CONTENT.text = gemini_structure.content
+    CONTENT.text = content
     DRAFT.text = "yes" if is_draft else "no"
     PREVIEW.text = "no"
 
@@ -54,10 +55,10 @@ def xml_unparser(
     return ET.tostring(ROOT, encoding="unicode")
 
 
-def hatena_uploader(xml_str: str, hatena_secret_keys: dict) -> dict:
-    URL = hatena_secret_keys.pop("hatena_entry_url")
+def hatena_oauth(xml_str: str, hatena_secret_keys: dict) -> dict:
+    """はてなブログへ投稿"""
 
-    # はてなブログへ投稿
+    URL = hatena_secret_keys.pop("hatena_entry_url")
     oauth = OAuth1Session(**hatena_secret_keys)
     response = oauth.post(
         URL, data=xml_str, headers={"Content-Type": "application/xml; charset=utf-8"}
@@ -65,16 +66,25 @@ def hatena_uploader(xml_str: str, hatena_secret_keys: dict) -> dict:
 
     logger.debug(f"Status: {response.status_code}")
     if response.status_code == 201:
-        logger.debug("✓ 投稿成功")
+        logger.info("✓ はてなブログへ投稿成功")
     else:
-        logger.debug(f"✗ エラー発生。投稿できませんでした。")
+        logger.info(f"✗ エラー発生。はてなブログへ投稿できませんでした。")
+
+        ### エラー処理考え中
+        raise ConnectionError
+
+    return response
+
+
+def parse_response(response: str) -> dict:
+    """投稿結果を取得"""
+
+    # 名前空間
+    NS = {"atom": "http://www.w3.org/2005/Atom", "app": "http://www.w3.org/2007/app"}
 
     root = ET.fromstring(response.text)
-    # 名前空間
-    ns = {"atom": "http://www.w3.org/2005/Atom", "app": "http://www.w3.org/2007/app"}
-
     categories = []
-    for category_elem in root.findall("atom:category", ns):
+    for category_elem in root.findall("atom:category", NS):
         term = category_elem.get("term")
         if term:
             categories.append(term)
@@ -82,38 +92,32 @@ def hatena_uploader(xml_str: str, hatena_secret_keys: dict) -> dict:
     response_dict = {
         # Atom名前空間の要素
         "title": root.find("{http://www.w3.org/2005/Atom}title").text,
-        "author": root.find("atom:author/atom:name", ns).text,
-        "content": root.find("atom:content", ns).text,
-        "time": datetime.fromisoformat(root.find("atom:updated", ns).text),
-        "link_edit": root.find("atom:link[@rel='edit']", ns).get("href"),
-        "link_alternate": root.find("atom:link[@rel='alternate']", ns).get("href"),
+        "author": root.find("atom:author/atom:name", NS).text,
+        "content": root.find("atom:content", NS).text,
+        "time": datetime.fromisoformat(root.find("atom:updated", NS).text),
+        "link_edit": root.find("atom:link[@rel='edit']", NS).get("href"),
+        "link_alternate": root.find("atom:link[@rel='alternate']", NS).get("href"),
         "categories": categories,
         # app名前空間の要素
-        "is_draft": root.find("app:control/app:draft", ns).text == "yes",
+        "is_draft": root.find("app:control/app:draft", NS).text == "yes",
     }
     return response_dict
 
 
-if __name__ == "__main__":
+def blog_post(
+    title: str,
+    content: str,
+    categories: list,
+    hatena_secret_keys: dict,
+    preset_categories: list = [],
+    author: str | None = None,
+    updated: datetime | None = None,
+    is_draft: bool = False,
+) -> dict:
 
-    # sample XML
-    xml_str = r"""<?xml version="1.0" encoding="utf-8"?>
-    <entry xmlns="http://www.w3.org/2005/Atom"
-        xmlns:app="http://www.w3.org/2007/app">
-    <title>TITLE</title>
-    <updated>2013-09-02T11:28:23+09:00</updated>  # 未来の投稿の場合指定
-    <author><name>name</name></author>
-    <content type="text/plain">
-        ===========CONTENT===========
-    </content>
-    <category term="Scala" />
-    <app:control>
-        <app:draft>yes</app:draft> # 下書きの場合
-        <app:preview>no</app:preview> #
-    </app:control>
-    </entry>"""
+    xml_entry = xml_unparser(
+        title, content, categories, preset_categories, author, updated, is_draft
+    )
+    res = hatena_oauth(xml_entry, hatena_secret_keys)
 
-    xml_str = xml_unparser("タイトル", "本文のテスト")
-    data = hatena_uploader(xml_str)  # 辞書型
-
-    logger.debug(data)
+    return parse_response(res)

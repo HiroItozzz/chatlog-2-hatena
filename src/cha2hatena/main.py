@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 import pandas as pd
 import yfinance as yf
 
-from . import ai_client, line_message, uploader
+from . import ai_client, hatenablog_poster, line_message
 from . import json_loader as jl
 from .validate import initialize_config
 
@@ -39,17 +39,17 @@ def summarize_and_upload(
 ) -> tuple[dict, dict]:
 
     # GoogleへAPIリクエスト
-    gemini_structure, gemini_stats = ai_client.get_summary(**gemini_config)
+    gemini_outputs, gemini_stats = ai_client.get_summary(**gemini_config)
 
-    # はてなブログへ投稿
-    xml_str = uploader.xml_unparser(
-        gemini_structure,
+    # はてなブログへ投稿 投稿結果を辞書型で返却
+    result = hatenablog_poster.blog_post(
+        **gemini_outputs,
+        hatena_secret_keys=hatena_secret_keys,
         preset_categories=preset_categories,
         author=None,  # str | None   Noneの場合自分のはてなID
         updated=None,  # datetime | None  公開時刻設定。Noneの場合5分後に公開
         is_draft=debug_mode,  # デバッグ時は下書き
     )
-    result = uploader.hatena_uploader(xml_str, hatena_secret_keys)  # 辞書型で返却
 
     return result, gemini_stats
 
@@ -99,6 +99,7 @@ def main():
             "thoughts_level": config["ai"]["thoughts_level"],
             "gemini_api_key": SECRET_KEYS.pop("GEMINI_API_KEY"),
         }
+        LINE_ACCESS_TOKEN = SECRET_KEYS.pop("LINE_CHANNEL_ACCESS_TOKEN")
         HATENA_SECRET_KEYS = SECRET_KEYS
 
         if len(sys.argv) > 1:
@@ -179,19 +180,21 @@ def main():
             index=["vals"],
         )
 
-        output_dir = Path(config["paths"]["output_dir"].strip())
-        output_dir.mkdir(exist_ok=True)
-        summary_path = output_dir / (f"{title}.txt")
-        csv_path = output_dir / "record.csv"
+        summary_file_name = datetime.now().strftime("%y%m%d") + "-" + title
 
-        # csv出力
+        csv_dir = Path(config["paths"]["output_dir"].strip())
+        csv_dir.mkdir(exist_ok=True)
+        csv_path = csv_dir / "record.csv"
+        summary_dir = csv_dir / "summary"
+        summary_dir.mkdir(exist_ok=True)
+        summary_path = summary_dir / (f"{summary_file_name}.txt")
+        # 出力
         append_csv(csv_path, df)
-
         summary_path.write_text(content, encoding="utf-8")
 
         # LINE通知
-        LINE_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "").strip()
         line_text = f"投稿完了です。今日も長い時間お疲れさまでした！\nURL:{url}\nタイトル：{title}"
+
         try:
             line_message.line_messenger(line_text, LINE_ACCESS_TOKEN)
         except Exception as e:

@@ -27,21 +27,36 @@ def validate_config(config_dict: dict, secret_keys: dict):
     # 必須キーの存在確認
     for key in required_keys:
         if get_nested_config(config_dict, key) is None:
-            raise ValueError(f"Missing required config: {key}")
+            raise ValueError(f"{key}が見つかりません。config.yamlで設定をする必要があります。")
 
     # API_KEYの検証
-    for name, secret_key in secret_keys.items():
-        if len(secret_key.strip()) == 0:
-            raise ValueError(f"{name} is required in environment variables")
+    for idx, (name, secret_key) in enumerate(secret_keys.items()):
+        if len(secret_key.strip()) == 0 or secret_key.strip().lower().startswith("your"):
+            if idx == 0:
+                raise ValueError(
+                    f"{name}が見つかりませんでした。.envでキーを設定する必要があります。"
+                )
+            elif 0 < idx <= 2:
+                print(f"{name}が見つかりませんでした。Geminiによる要約を試みます。")
+                break
+            elif 2 < idx <= 4:
+                print(
+                    f"{name}が見つかりませんでした。\
+                    ブログを投稿するにははてなブログの初回認証を行う必要があります。"
+                )
+                print("Geminiによる要約を試みます。")
+                break
+            else:
+                print(f"{name}が見つかりませんでした。要約をはてなブログへ投稿します。")
 
     # thoughts_levelの範囲チェック
     thoughts_level = config_dict["ai"]["thoughts_level"]
     if thoughts_level is not None and not (-1 <= thoughts_level <= 24576):
         raise ValueError("ai.thoughts_level must be between -1 and 24576")
     elif (0 <= thoughts_level < 128) and config_dict["ai"]["model"] == "gemini-2.5-pro":
-        raise ValueError(
-            "ai.thoughts_level must be between 128 and 24576 or -1 forgemini-2.5-pro "
-        )
+        raise ValueError("ai.thoughts_level must be between 128 and 24576 or -1 forgemini-2.5-pro ")
+
+    return config_dict, secret_keys
 
 
 def initialize_config() -> tuple[dict, dict]:
@@ -66,6 +81,7 @@ def initialize_config() -> tuple[dict, dict]:
         "resource_owner_key": os.getenv("HATENA_ACCESS_TOKEN", ""),
         "resource_owner_secret": os.getenv("HATENA_ACCESS_TOKEN_SECRET", ""),
         "hatena_entry_url": os.getenv("HATENA_ENTRY_URL", ""),
+        "LINE_CHANNEL_ACCESS_TOKEN": os.getenv("LINE_CHANNEL_ACCESS_TOKEN", ""),
     }
 
     # 設定の検証

@@ -1,10 +1,11 @@
 import logging
 import time
-from typing import List
+import json
 
 from google import genai
 from google.genai import types
 from pydantic import BaseModel, Field
+from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -60,9 +61,7 @@ def get_summary(
                 model=model,
                 contents=f"{custom_prompt}\n\n{conversation}",
                 config=types.GenerateContentConfig(
-                    thinking_config=types.ThinkingConfig(
-                        thinking_budget=thoughts_level
-                    ),
+                    thinking_config=types.ThinkingConfig(thinking_budget=thoughts_level),
                     response_mime_type="application/json",  # 構造化出力
                     response_json_schema=GeminiStructure.model_json_schema(),
                 ),
@@ -83,18 +82,14 @@ def get_summary(
                 raise
 
     print("Geminiによる要約を受け取りました。")
-    try:
-        gemini_structure = GeminiStructure.model_validate_json(response.text)
-        logger.debug("構造化出力のバリデーションに成功しました。")
 
-    #### JSONパースによるエラーハンドリング実装予定
-    except Exception as e:
-        logger.info(
-            "構造化出力のバリデーションに失敗しました。再度アプリを実行する必要があります。"
-        )
-        logger.info(f"詳細: {e}", exc_info=True)
-        print("実行を中断します。")
-        raise
+    data = json.loads(response.text)
+    required_keys = {"title", "content", "categories"}
+
+    if set(data.keys()) != required_keys:
+        raise ValueError(f"Geminiが構造化出力に失敗。\n要請：{required_keys} 出力：{data.keys()}")
+
+    logger.debug("Gemini構造化出力に成功。")
 
     stats = {
         "output_letter_count": len(response.text),
@@ -103,4 +98,4 @@ def get_summary(
         "output_tokens": response.usage_metadata.candidates_token_count,
     }
 
-    return gemini_structure, stats
+    return data, stats
