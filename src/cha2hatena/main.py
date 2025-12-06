@@ -8,8 +8,9 @@ import pandas as pd
 import yfinance as yf
 from dotenv import load_dotenv
 
-from . import ai_client, hatenablog_poster, line_message
+from . import ai_client, hatenablog_poster
 from . import json_loader as jl
+from . import line_message
 from .validate import initialize_config
 
 logger = logging.getLogger(__name__)
@@ -43,7 +44,7 @@ def summarize_and_upload(
     gemini_outputs, gemini_stats = ai_client.get_summary(**gemini_config)
 
     # はてなブログへ投稿 投稿結果を辞書型で返却
-    result = hatenablog_poster.blog_post(
+    response_dict = hatenablog_poster.blog_post(
         **gemini_outputs,
         hatena_secret_keys=hatena_secret_keys,
         preset_categories=preset_categories,
@@ -52,7 +53,7 @@ def summarize_and_upload(
         is_draft=debug_mode,  # デバッグ時は下書き
     )
 
-    return result, gemini_stats
+    return response_dict, gemini_stats
 
 
 def append_csv(path: Path, df: pd.DataFrame):
@@ -121,6 +122,7 @@ def main():
         )
 
         url = result.get("link_alternate", "")
+        url_edit = result.get("link_edit_user", "")
         title = result.get("title", "")
         content = result.get("content", "")
         categories = result.get("categories", [])
@@ -194,12 +196,16 @@ def main():
         summary_path.write_text(content, encoding="utf-8")
 
         # LINE通知
-        line_text = f"投稿完了です。今日も長い時間お疲れさまでした！\nURL:{url}\nタイトル：{title}"
-
+        if result["status_code"] == 201:
+            line_text = f"投稿完了です。今日も長い時間お疲れさまでした！\nタイトル：{title}\n確認: {url}\n編集: {url_edit}"
+        else:
+            line_text = f"要約の保存完了。今日も長い時間お疲れ様でした！\nタイトル：{title}\n本文: \n{content[:200]} ..."
+            
         try:
             line_message.line_messenger(line_text, LINE_ACCESS_TOKEN)
         except Exception as e:
             print("エラー：LINE通知は行われませんでした。")
+            logging.info(f"詳細: {e}", exc_info=True)
 
         logging.info("アプリケーションは正常に終了しました。")
 
