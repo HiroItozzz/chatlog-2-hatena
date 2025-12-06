@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class GeminiStructure(BaseModel):
     title: str = Field(description="ブログのタイトル。")
     content: str = Field(
-        description=f"ブログの本文（マークダウン形式）。その最後には、「この記事は Gemini-2.5-pro により自動生成されています」と目立つように注記してください。"
+        description="ブログの本文（マークダウン形式）。その最後には、「この記事は Gemini-2.5-pro により自動生成されています」と目立つように注記してください。"
     )
     categories: List[str] = Field(description="カテゴリー一覧", max_length=4)
 
@@ -46,7 +46,6 @@ def get_summary(
     thoughts_level: int = -1,
     custom_prompt: str = "please summarize the following conversation for my personal blog article. Keep it under 200 words in Japanese: ",
 ) -> tuple[GeminiStructure, dict]:
-
     print("Geminiからの応答を待っています。")
     logger.debug(f"APIリクエスト中。APIキー: ...{gemini_api_key[-5:]}")
 
@@ -69,12 +68,12 @@ def get_summary(
             break
         except Exception as e:
             if any(code in str(e) for code in ["500", "503"]) and i < max_retries - 1:
-                logger.info(f"Googleの計算資源が逼迫しているようです。{5 * (i+1)}秒後にリトライします。")
+                logger.info(f"Googleの計算資源が逼迫しているようです。{5 * (i + 1)}秒後にリトライします。")
                 time.sleep(5 * (i + 1))  # 5秒、10秒、15秒と待つ
             else:
-                logger.info(f"Googleは現在過負荷のようです。少し時間をおいて再実行する必要があります。")
+                logger.info("Googleは現在過負荷のようです。少し時間をおいて再実行する必要があります。")
                 logger.debug(f"詳細：{e}", exc_info=True)
-                logger.info(f"実行を中断します。")
+                logger.info("実行を中断します。")
                 raise
 
     print("Geminiによる要約を受け取りました。")

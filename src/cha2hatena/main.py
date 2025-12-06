@@ -8,9 +8,8 @@ import pandas as pd
 import yfinance as yf
 from dotenv import load_dotenv
 
-from . import ai_client, hatenablog_poster
+from . import ai_client, hatenablog_poster, line_message
 from . import json_loader as jl
-from . import line_message
 from .validate import initialize_config
 
 logger = logging.getLogger(__name__)
@@ -40,7 +39,6 @@ def summarize_and_upload(
     hatena_secret_keys: dict,
     debug_mode: bool = False,
 ) -> tuple[dict, dict]:
-
     # GoogleへAPIリクエスト
     gemini_outputs, gemini_stats = ai_client.get_summary(**gemini_config)
 
@@ -77,7 +75,6 @@ def append_csv(path: Path, df: pd.DataFrame):
 
 
 def main():
-
     try:
         # config.yamlで設定初期化
         try:
@@ -87,7 +84,7 @@ def main():
             sys.exit(1)
 
         logger.debug("================================================")
-        logger.debug(f"アプリケーションが起動しました。")
+        logger.debug("アプリケーションが起動しました。")
 
         DEBUG_CONFIG = config["other"]["debug"].lower() in ("true", "1", "t")
         DEBUG = DEBUG_ENV if DEBUG_ENV else DEBUG_CONFIG
@@ -128,7 +125,7 @@ def main():
         content = result.get("content", "")
         categories = result.get("categories", [])
 
-        logger.info(f"はてなブログへの投稿に成功しました。")
+        logger.info("はてなブログへの投稿に成功しました。")
         ###### 下書きの場合公開URLへのアクセス不能
         logger.info(f"URL: {url}")
         print("-" * 50)
@@ -151,6 +148,7 @@ def main():
             total_JPY = total_fee * dy_rate
         except Exception as e:
             logging.info("ヤフーファイナンスから為替レートを取得できませんでした。", exc_info=True)
+            logging.info(f"詳細: {e}")
             total_JPY = None
 
         ai_names = jl.ai_names_from_paths(input_paths)
@@ -190,7 +188,7 @@ def main():
         csv_path = csv_dir / "record.csv"
         summary_dir = csv_dir / "summary"
         summary_dir.mkdir(exist_ok=True)
-        summary_path = summary_dir / (f"{summary_file_name.replace('/', ", ")}.txt")
+        summary_path = summary_dir / (f"{summary_file_name.replace('/', ', ')}.txt")
         # 出力
         append_csv(csv_path, df)
         summary_path.write_text(content, encoding="utf-8")

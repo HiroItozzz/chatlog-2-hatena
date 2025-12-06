@@ -18,7 +18,7 @@ def xml_unparser(
 ) -> str:
     """はてなブログ投稿リクエストの形式へ変換"""
 
-    logger.debug(f"{'='*25}xml_unparserの処理開始{'='*25}")
+    logger.debug(f"{'=' * 25}xml_unparserの処理開始{'=' * 25}")
 
     # 公開時刻設定
     jst = timezone(timedelta(hours=9))
@@ -52,7 +52,7 @@ def xml_unparser(
     DRAFT.text = "yes" if is_draft else "no"
     PREVIEW.text = "no"
 
-    logger.debug(f"{'='*25}☑ xml_unparserの処理終了{'='*25}")
+    logger.debug(f"{'=' * 25}☑ xml_unparserの処理終了{'=' * 25}")
     return ET.tostring(ROOT, encoding="unicode")
 
 
@@ -113,7 +113,6 @@ def blog_post(
     updated: datetime | None = None,
     is_draft: bool = False,
 ) -> dict:
-
     xml_entry = xml_unparser(title, content, categories, preset_categories, author, updated, is_draft)
     res = hatena_oauth(xml_entry, hatena_secret_keys)
 
