@@ -41,4 +41,3 @@ def test_uploader():
 
 if __name__ == "__main__":
     test_uploader()
-    test_uploader()

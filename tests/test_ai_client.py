@@ -34,4 +34,3 @@ def test_ai_client():
     assert len(result["content"]) > 0
     assert stats["input_tokens"] > 0
     assert len(result["categories"]) > 1
-    assert len(result["categories"]) > 1

@@ -30,19 +30,19 @@ def get_conversation_titles(paths: list[Path], ai_names: list) -> list:
     return titles
 
 
-def get_agent(message: str, ai_name: str) -> str:
+def get_agent(message: dict, ai_name: str) -> str:
     """話者判定・Gemini出力の精度向上のため"""
     if message.get("role") == "Prompt":
         agent = "You"
     elif message.get("role") == "Response":
         agent = ai_name
     else:
-        agent = message.get("role")
+        agent = message.get("role", "")
         logger.debug(f"{'=' * 25}Detected agent other than You and {ai_name}: {agent} {'=' * 25}")
     return agent
 
 
-def convert_to_str(messages: dict, ai_name: str) -> tuple[str, datetime | None]:
+def convert_to_str(messages: dict, ai_name: str) -> tuple[list, datetime | None]:
     """jsonの本丸を処理"""
 
     logger.info(f"{len(messages)}件のメッセージを処理中...")
@@ -61,7 +61,7 @@ def convert_to_str(messages: dict, ai_name: str) -> tuple[str, datetime | None]:
         # 当日のメッセージではないかつ3時間以上時間が空いた場合ループを抜ける
         if timestamp:
             msg_dt = datetime.strptime(timestamp, dt_format)
-            if msg_dt.date() != latest_dt.date():
+            if latest_dt is not None and msg_dt.date() != latest_dt.date():
                 if previous_dt - msg_dt > timedelta(hours=3):
                     break
 
@@ -75,7 +75,7 @@ def convert_to_str(messages: dict, ai_name: str) -> tuple[str, datetime | None]:
     return logs, timestamp
 
 
-def json_loader(paths: list[Path]) -> list[str, list]:
+def json_loader(paths: list[Path,]) -> str:
     """複数のjsonファイルをstrに"""
 
     logger.info(f"{len(paths)}個のjsonファイルの読み込みを開始します")

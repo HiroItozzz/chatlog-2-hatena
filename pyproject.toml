@@ -40,7 +40,6 @@ build-backend = "setuptools.build_meta"
 dev = [
     "pytest",
     "black",
-    "mypy"
 ]
 
 [project.scripts]

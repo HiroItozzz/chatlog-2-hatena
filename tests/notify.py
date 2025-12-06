@@ -24,8 +24,6 @@ print(len(LINE_ACCESS_TOKEN), LINE_ACCESS_TOKEN[:-5])
 if LINE_ACCESS_TOKEN:
     logger.info("アクセストークンを取得")
 
-import requests
-
 # 辞書としてヘッダーを設定
 headers = {
     # 送信するデータの形式を指定（例：JSON）
@@ -46,7 +44,7 @@ else:
     logger.info(f"ステータスコード：{res.status_code}")
     res_dict = res.json()
     try:
-        logger.info(f"詳細: {res_dict["message"]}")
-        logger.info(f"{res_dict["details"][0]["message"]}")
+        logger.info(f"詳細: {res_dict['message']}")
+        logger.info(f"{res_dict['details'][0]['message']}")
     except Exception:
         logger.info("レスポンスを解析できませんでした。", exc_info=True)
