@@ -9,9 +9,8 @@ import pandas as pd
 import yfinance as yf
 from dotenv import load_dotenv
 
-from . import ai_client, hatenablog_poster
+from . import ai_client, hatenablog_poster, line_message
 from . import json_loader as jl
-from . import line_message
 from .validate import initialize_config
 
 logger = logging.getLogger(__name__)
