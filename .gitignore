@@ -5,6 +5,7 @@ __pycache__/
 outputs/
 *.csv
 *.log
+*.log.1
 .pytest_cache
 requirements-dev.*
 requirements.ini

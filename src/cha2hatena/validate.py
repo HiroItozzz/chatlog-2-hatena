@@ -35,14 +35,14 @@ def validate_config(config_dict: dict, secret_keys: dict):
             if idx == 0:
                 raise ValueError(f"{name}が見つかりませんでした。.envでキーを設定する必要があります。")
             elif 0 < idx <= 2:
-                print(f"{name}が見つかりませんでした。Geminiによる要約を試みます。")
+                logger.warning(f"{name}が見つかりませんでした。Geminiによる要約を試みます。")
                 break
             elif 2 < idx <= 4:
-                print(f"{name}が見つかりませんでした。ブログを投稿するにははてなブログの初回認証を行う必要があります。")
-                print("Geminiによる要約を試みます。")
+                logger.warning(f"{name}が見つかりませんでした。ブログを投稿するにははてなブログの初回認証を行う必要があります。")
+                logger.warning("Geminiによる要約を試みます。")
                 break
             else:
-                print(f"{name}が見つかりませんでした。要約をはてなブログへ投稿します。")
+                logger.warning(f"{name}が見つかりませんでした。要約をはてなブログへ投稿します。")
 
     # thoughts_levelの範囲チェック
     thoughts_level = config_dict["ai"]["thoughts_level"]

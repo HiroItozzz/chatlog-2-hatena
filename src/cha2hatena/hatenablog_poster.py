@@ -79,10 +79,9 @@ def hatena_oauth(xml_str: str, hatena_secret_keys: dict) -> dict:
 
     logger.debug(f"Status: {response.status_code}")
     if response.status_code == 201:
-        logger.info("✓ はてなブログへ投稿成功")
+        logger.warning("✓ はてなブログへ投稿成功")
     else:
-        logger.info("✗ エラー発生。はてなブログへ投稿できませんでした。")
-
+        logger.error("✗ リクエスト中にエラー発生。はてなブログへ投稿できませんでした。")
     return response
 
 
