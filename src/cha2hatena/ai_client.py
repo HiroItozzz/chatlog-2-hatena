@@ -1,13 +1,12 @@
 import json
 import logging
 import time
-import json
+from typing import List
 
 from google import genai
 from google.genai import types
 from google.genai.errors import ClientError, ServerError
 from pydantic import BaseModel, Field
-from typing import List
 
 logger = logging.getLogger(__name__)
 

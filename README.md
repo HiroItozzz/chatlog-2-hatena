@@ -79,9 +79,9 @@ python token_request.py
 ### 4. config.yamlの設定
 ```yaml
 ai:
-  model: gemini-2.5-pro
+  model: gemini-2.5-flash # または Gemini-2.5-pro
   prompt: "please summarize the following conversation for my personal blog article..."
-  thoughts_level: -1  # または 128-24576
+  thoughts_level: -1  # 思考レベルの設定: "-1"は動的思考
 
 blog:
   preset_category:
@@ -156,7 +156,7 @@ python -m cha2hatena path/to/conversation.json
 
 ## License
 
-Apache License 2.0 - See [LICENSE](LICENSE) for details.
+MIT LICENSE
 
 ## 参考資料
 
