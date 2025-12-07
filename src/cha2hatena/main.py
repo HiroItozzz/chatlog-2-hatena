@@ -8,9 +8,8 @@ import pandas as pd
 import yfinance as yf
 from dotenv import load_dotenv
 
-from . import ai_client, hatenablog_poster
+from . import ai_client, hatenablog_poster, line_message
 from . import json_loader as jl
-from . import line_message
 from .validate import initialize_config
 
 logger = logging.getLogger(__name__)
@@ -199,7 +198,8 @@ def main():
         if result["status_code"] == 201:
             line_text = f"投稿完了です。今日も長い時間お疲れさまでした！\nタイトル：{title}\n確認: {url}\n編集: {url_edit}"
         else:
-            line_text = f"要約の保存完了。今日も長い時間お疲れ様でした！\nタイトル：{title}\n本文: \n{content[:200]} ..."
+            line_text = "要約の保存完了。ブログ投稿は行われませんでした。今日も長い時間お疲れ様でした！"
+            line_text = line_text + f"\nタイトル：{title}\n本文: \n{content[:200]} ..."
             
         try:
             line_message.line_messenger(line_text, LINE_ACCESS_TOKEN)
