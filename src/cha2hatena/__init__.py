@@ -1,9 +1,7 @@
 __version__ = "0.1.0"
 
+import logging
 
-from . import main
-from . import validate
-from . import json_loader
-from . import ai_client
-from . import hatenablog_poster
-from . import line_message
+logger = logging.getLogger('cha2hatena')
+logger.setLevel(logging.WARNING)
+logger.propagate=False

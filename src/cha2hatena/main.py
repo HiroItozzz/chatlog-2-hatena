@@ -1,8 +1,6 @@
 import logging
-import os
 import sys
 from datetime import datetime
-from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 import pandas as pd
@@ -11,42 +9,18 @@ from dotenv import load_dotenv
 
 from . import ai_client, hatenablog_poster, line_message
 from . import json_loader as jl
-from .validate import initialize_config
+from .setup import initialization
 
-logger = logging.getLogger(__name__)
 load_dotenv(override=True)
+logger = logging.getLogger(__name__)
+parent_logger = logging.getLogger("chat2hatena")
 
-# DEBUGモード・ログレベル仮判定
 try:
-    DEBUG_ENV = os.getenv("DEBUG", "False").lower() in ("true", "t", "1")
-    initial_level = logging.DEBUG if DEBUG_ENV else logging.WARNING
-except Exception:
-    DEBUG_ENV = False
-    initial_level = logging.WARNING
-
-# ハンドラー設定
-file_handler = RotatingFileHandler("app.log", maxBytes=0.5*1024*1024, backupCount=1 ,encoding="utf-8")
-file_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s"))
-file_handler.setLevel(logging.DEBUG)
-
-console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setFormatter(logging.Formatter("%(message)s"))
-console_handler.setLevel(initial_level)
-
-logging.basicConfig(level=logging.DEBUG, handlers=[file_handler, console_handler])
-
-# 設定読み込み
-try:
-    config, SECRET_KEYS = initialize_config()
+    DEBUG, SECRET_KEYS, config, stream_handler, file_handler = initialization(parent_logger)
 except Exception as e:
-    logger.critical(f"APIキーを読み込めませんでした: {e}")
+    logger.critical(f"初期設定が正常に行われませんでした: {e}", exc_info=True)
     sys.exit(1)
 
-# DEBUGモード・ログレベル決定
-DEBUG_CONFIG = config["other"]["debug"].lower() in ("true", "1", "t")
-DEBUG = DEBUG_ENV if DEBUG_ENV else DEBUG_CONFIG
-if DEBUG and not DEBUG_ENV:
-    logging.root.setLevel(logging.DEBUG)
 
 # グローバル定数
 PRESET_CATEGORIES = config["blog"]["preset_category"]
@@ -140,6 +114,21 @@ def main():
         print(f"{content[:100]}")
         print("-" * 50)
 
+        # LINE通知
+        if result["status_code"] == 201:
+            line_text = "投稿完了です。今日も長い時間お疲れさまでした！\n"
+            line_text = line_text + f"タイトル：{title}\n確認: {url}\n編集: {url_edit}\n下書きモード: {result.get('is_draft')}"
+        else:
+            line_text = "要約の保存完了。ブログ投稿は行われませんでした。今日も長い時間お疲れ様でした。\n"
+            line_text = line_text + f"タイトル：{title}\n本文: \n{content[:200]} ..."
+            
+        try:
+            line_message.line_messenger(line_text, LINE_ACCESS_TOKEN)
+        except Exception as e:
+            logger.error("エラー：LINE通知は行われませんでした。")
+            logger.info(f"詳細: {e}")
+
+
         MODEL = GEMINI_CONFIG["model"]
         fee = ai_client.GeminiFee()
         i_fee = fee.calculate(MODEL, "input", gemini_stats["input_tokens"])
@@ -198,20 +187,6 @@ def main():
         # 出力
         append_csv(csv_path, df)
         summary_path.write_text(content, encoding="utf-8")
-
-        # LINE通知
-        if result["status_code"] == 201:
-            line_text = f"投稿完了です。今日も長い時間お疲れさまでした！\nタイトル：{title}\n確認: {url}\n編集: {url_edit}"
-        else:
-            line_text = "要約の保存完了。ブログ投稿は行われませんでした。今日も長い時間お疲れ様でした。"
-            line_text = line_text + f"\nタイトル：{title}\n本文: \n{content[:200]} ..."
-            
-        try:
-            line_message.line_messenger(line_text, LINE_ACCESS_TOKEN)
-        except Exception as e:
-            logger.error("エラー：LINE通知は行われませんでした。")
-            logger.info(f"詳細: {e}")
-
         logger.info("処理が正常に終了しました。")
 
         return 0

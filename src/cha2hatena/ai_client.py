@@ -36,8 +36,10 @@ class GeminiFee:
                 return tokens * base_fees["under_0.2M"][token_type] / 1000000
             else:
                 return tokens * base_fees["over_0.2M"][token_type] / 1000000
-        else:
+        elif model == "gemini-2.5-flash":
             return tokens * self.fees[model][token_type] / 1000000
+        else:
+            return
 
 
 def get_summary(
@@ -46,7 +48,7 @@ def get_summary(
     model: str = "gemini-2.5-pro",
     thoughts_level: int = -1,
     custom_prompt: str = "以下の内容を日本語で１０００字以内で要約し、個人用のブログ向け文章にしてください。",
-) -> tuple[GeminiStructure, dict]:
+) -> tuple[dict, dict]:
     logger.warning("Geminiからの応答を待っています。")
     logger.debug(f"APIリクエスト中。APIキー: ...{gemini_api_key[-5:]}")
 
