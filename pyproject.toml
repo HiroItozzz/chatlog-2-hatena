@@ -6,13 +6,13 @@ authors = [
   {name = "Hiroaki Ito", email = "mobiiii24@gmail.com"}
 ]
 readme = "README.md"
-license = {text = "Apache-2.0"}
+license = {text = "MIT"}
 requires-python = ">=3.10"
 keywords = ["chatbot", "blog", "hatena", "automation", "gemini"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: Apache Software License",
+    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.13",
     "Topic :: Internet :: WWW/HTTP",

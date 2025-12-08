@@ -6,12 +6,13 @@ sample_paths = [
     Path(r"sample\ChatGPT-sample.json"),
     Path(r"sample\Claude-sample.json"),
 ]
-ai_names = ["ChatGPT", "Claude"]
+ai_names = ["ChatGPT", "Claude", "Gemini"]
 
 
 def test_json_loader():
     result = jl.json_loader(sample_paths)
-    with open("outputs/test_json_loader.txt", "w", encoding="utf-8") as f:
+    output_dir = Path.cwd() / "outputs/"
+    with open(output_dir / "test_json_loader.txt", "w", encoding="utf-8") as f:
         f.write(result)
 
     assert isinstance(result, str)

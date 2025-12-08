@@ -1,38 +1,38 @@
 import logging
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
 import yfinance as yf
-from dotenv import load_dotenv
 
-from . import ai_client, hatenablog_poster
+from . import ai_client, hatenablog_poster, line_message
 from . import json_loader as jl
-from . import line_message
-from .validate import initialize_config
+from .setup import initialization
 
 logger = logging.getLogger(__name__)
-load_dotenv(override=True)
+parent_logger = logging.getLogger("chat2hatena")
 
-# .envのDEBUG項目の存在と値でログレベル仮判定
 try:
-    DEBUG_ENV = os.environ.get("DEBUG", "False").lower() in ("true", "t", "1")
-    initial_level = logging.DEBUG if DEBUG_ENV else logging.INFO
-except Exception:
-    DEBUG_ENV = False
-    initial_level = logging.INFO
+    DEBUG, SECRET_KEYS, config = initialization(parent_logger)
+except Exception as e:
+    logger.critical(f"初期設定が正常に行われませんでした: {e}", exc_info=True)
+    sys.exit(1)
 
-logging.basicConfig(
-    level=initial_level,
-    format="%(asctime)s - %(levelname)s - [%(name)s] - %(message)s",
-    handlers=[
-        logging.FileHandler("app.log", encoding="utf-8"),
-        logging.StreamHandler(sys.stdout),
-    ],
-)
 
+# グローバル定数
+PRESET_CATEGORIES = config["blog"]["preset_category"]
+GEMINI_CONFIG = {
+    "custom_prompt": config["ai"]["prompt"],
+    "model": config["ai"]["model"],
+    "thoughts_level": config["ai"]["thoughts_level"],
+    "gemini_api_key": SECRET_KEYS.pop("GEMINI_API_KEY"),
+}
+LINE_ACCESS_TOKEN = SECRET_KEYS.pop("LINE_CHANNEL_ACCESS_TOKEN")
+HATENA_SECRET_KEYS = SECRET_KEYS
+
+
+######################################################
 
 def summarize_and_upload(
     preset_categories: list,
@@ -68,46 +68,23 @@ def append_csv(path: Path, df: pd.DataFrame):
             header=is_new_file,  # ファイルがなければヘッダー書き込み、あればFalse
         )
         if is_new_file:
-            logger.info(f"新しいCSVファイルを作成しました: {path}")
+            logger.warning(f"新しいCSVファイルを作成しました: {path}")
         else:
-            logger.info(f"CSVにデータを追記しました: {path.name}")
+            logger.warning(f"CSVにデータを追記しました: {path.name}")
     except Exception:
         logger.exception("CSVファイルへの書き込み中にエラーが発生しました。")
 
 
 def main():
     try:
-        # config.yamlで設定初期化
-        try:
-            config, SECRET_KEYS = initialize_config()
-        except Exception as e:
-            logger.critical(f"CONFIG LOADING ERROR: {e}", exc_info=True)
-            sys.exit(1)
-
         logger.debug("================================================")
-        logger.debug("アプリケーションが起動しました。")
-
-        DEBUG_CONFIG = config["other"]["debug"].lower() in ("true", "1", "t")
-        DEBUG = DEBUG_ENV if DEBUG_ENV else DEBUG_CONFIG
-
-        if DEBUG and not DEBUG_ENV:
-            logging.getLogger().setLevel(logging.DEBUG)
-
-        PRESET_CATEGORIES = config["blog"]["preset_category"]
-        GEMINI_CONFIG = {
-            "custom_prompt": config["ai"]["prompt"],
-            "model": config["ai"]["model"],
-            "thoughts_level": config["ai"]["thoughts_level"],
-            "gemini_api_key": SECRET_KEYS.pop("GEMINI_API_KEY"),
-        }
-        LINE_ACCESS_TOKEN = SECRET_KEYS.pop("LINE_CHANNEL_ACCESS_TOKEN")
-        HATENA_SECRET_KEYS = SECRET_KEYS
+        logger.debug(f"アプリケーションが起動しました。デバッグモード：{DEBUG}")
 
         if len(sys.argv) > 1:
             INPUT_PATHS_RAW = sys.argv[1:]
-            logger.info(f"処理を開始します: {', '.join(INPUT_PATHS_RAW)}")
+            logger.warning(f"処理を開始します: {', '.join(INPUT_PATHS_RAW)}")
         else:
-            logger.info("エラー: コマンドライン引数を入力する必要があります。実行を終了します")
+            logger.error("エラー: 引数を入力する必要があります。実行を終了します")
             sys.exit(1)
 
         input_paths = list(map(Path, INPUT_PATHS_RAW))
@@ -127,14 +104,28 @@ def main():
         content = result.get("content", "")
         categories = result.get("categories", [])
 
-        logger.info("はてなブログへの投稿に成功しました。")
-        ###### 下書きの場合公開URLへのアクセス不能
-        logger.info(f"URL: {url}")
+        logger.warning("はてなブログへの投稿に成功しました。")
+        logger.warning(f"URL: {url_edit}")
         print("-" * 50)
         print(f"投稿タイトル：{title}")
         print(f"\n{'-' * 20}投稿本文{'-' * 20}")
         print(f"{content[:100]}")
         print("-" * 50)
+
+        # LINE通知
+        if result["status_code"] == 201:
+            line_text = "投稿完了です。今日も長い時間お疲れさまでした！\n"
+            line_text = line_text + f"タイトル：{title}\n確認: {url}\n編集: {url_edit}\n下書きモード: {result.get('is_draft')}"
+        else:
+            line_text = "要約の保存完了。ブログ投稿は行われませんでした。今日も長い時間お疲れ様でした。\n"
+            line_text = line_text + f"タイトル：{title}\n本文: \n{content[:200]} ..."
+            
+        try:
+            line_message.line_messenger(line_text, LINE_ACCESS_TOKEN)
+        except Exception as e:
+            logger.error("エラー：LINE通知は行われませんでした。")
+            logger.info(f"詳細: {e}")
+
 
         MODEL = GEMINI_CONFIG["model"]
         fee = ai_client.GeminiFee()
@@ -149,8 +140,8 @@ def main():
             dy_rate = yf.Ticker(ticker).history(period="1d").Close.iloc[0]
             total_JPY = total_fee * dy_rate
         except Exception as e:
-            logging.info("ヤフーファイナンスから為替レートを取得できませんでした。", exc_info=True)
-            logging.info(f"詳細: {e}")
+            logger.error("ヤフーファイナンスから為替レートを取得できませんでした。詳細はapp.logを確認してください")
+            logger.info(f"詳細: {e}",exc_info=True)
             total_JPY = None
 
         ai_names = jl.ai_names_from_paths(input_paths)
@@ -194,23 +185,11 @@ def main():
         # 出力
         append_csv(csv_path, df)
         summary_path.write_text(content, encoding="utf-8")
-
-        # LINE通知
-        if result["status_code"] == 201:
-            line_text = f"投稿完了です。今日も長い時間お疲れさまでした！\nタイトル：{title}\n確認: {url}\n編集: {url_edit}"
-        else:
-            line_text = f"要約の保存完了。今日も長い時間お疲れ様でした！\nタイトル：{title}\n本文: \n{content[:200]} ..."
-            
-        try:
-            line_message.line_messenger(line_text, LINE_ACCESS_TOKEN)
-        except Exception as e:
-            print("エラー：LINE通知は行われませんでした。")
-            logging.info(f"詳細: {e}", exc_info=True)
-
-        logging.info("アプリケーションは正常に終了しました。")
+        logger.info("処理が正常に終了しました。")
 
         return 0
 
-    except Exception as e:
-        logging.info("エラーが発生しました。\n実行を終了します。", exc_info=True)
+    except Exception:
+        logger.error("アプリケーションの実行を中止します。")
+        logger.info("詳細: ", exc_info=True)
         sys.exit(1)

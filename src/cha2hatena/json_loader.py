@@ -49,7 +49,7 @@ def get_agent(message: dict, ai_name: str) -> str:
 def convert_to_str(messages: dict, ai_name: str) -> tuple[list, datetime | None]:
     """jsonの本丸を処理"""
 
-    logger.info(f"{len(messages)}件のメッセージを処理中...")
+    logger.warning(f"{len(messages)}件のメッセージを処理中...")
 
     # 初期化
     dt_format = "%Y/%m/%d %H:%M:%S"
@@ -73,7 +73,7 @@ def convert_to_str(messages: dict, ai_name: str) -> tuple[list, datetime | None]
 
         text = message.get("say", "").replace("\n\n", "\n")
         logs.append(
-            f"{timestamp} \nagent: {agent}\n[message]\n{text} \n\n {'-' * 50}\n"
+            f"date: {timestamp} \nagent: {agent}\n[message]\n{text} \n\n {'-' * 50}\n"
         )
 
         if timestamp:
@@ -84,14 +84,14 @@ def convert_to_str(messages: dict, ai_name: str) -> tuple[list, datetime | None]
 def json_loader(paths: list[Path,]) -> str:
     """複数のjsonファイルをstrに"""
 
-    logger.info(f"{len(paths)}個のjsonファイルの読み込みを開始します")
+    logger.warning(f"{len(paths)}個のjsonファイルの読み込みを開始します")
 
     conversations = []
     ai_names = ai_names_from_paths(paths)
 
     # ファイルごとのループ
     for idx, (path, ai_name) in enumerate(zip(paths, ai_names), 1):
-        logger.debug(f"{idx}個目のファイルを読み込みます: {path.name}")
+        logger.warning(f"{idx}個目のファイルを読み込みます: {path.name}")
 
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
@@ -124,11 +124,11 @@ def json_loader(paths: list[Path,]) -> str:
         conversations.append(conversation)
         ai_names.append(ai_name)
 
-        logger.info(f"{len(logs) - 1}件の発言を取得: {path.name}")
-        print(f"{'=' * 25}最初のメッセージ{'=' * 25}\n{logs[-1][:100]}")
+        logger.warning(f"{len(logs) - 1}件の発言を取得: {path.name}")
+        print(f"{'=' * 25}最初のメッセージ{'=' * 25}\n{logs[-2][:100]}")
         print(f"{'=' * 25}最後のメッセージ{'=' * 25}\n{logs[0][:100]}")
         print("=" * 60)
 
-    logger.info(f"☑ {len(paths)}件のjsonファイルをテキストに変換しました。\n")
+    logger.warning(f"☑ {len(paths)}件のjsonファイルをテキストに変換しました。\n")
 
     return "\n\n\n".join(conversations)

@@ -4,6 +4,7 @@
 AIとの会話が保存された特定の形式のJSONファイルを解析・要約。
 その内容をはてなブログへ自動投稿するためのツール。  
 発端は自分のプログラミング学習の記録用です。
+- 実際の投稿: https://d3c0.hatenablog.com/entry/2025/12/08/174957
 
 ## 基本的な使い方
 （下準備： 下記Chrome拡張機能でAIとの対話ログ(.json)をDL）
@@ -79,9 +80,9 @@ python token_request.py
 ### 4. config.yamlの設定
 ```yaml
 ai:
-  model: gemini-2.5-pro
+  model: gemini-2.5-flash # または Gemini-2.5-pro
   prompt: "please summarize the following conversation for my personal blog article..."
-  thoughts_level: -1  # または 128-24576
+  thoughts_level: -1  # 思考レベルの設定: "-1"は動的思考
 
 blog:
   preset_category:
@@ -134,18 +135,20 @@ python -m cha2hatena path/to/conversation.json
 ## 工夫したこと
 - Gemini構造化出力（`pydantic`を使用）によってGeminiによる出力をjson形に限定
   - はてなへの入力（XML形式、タイトル・内容・カテゴリ）との一致を強く保証
-- エラーハンドリング
-  - Chrome拡張機能由来のjson処理、外部接続3回のパイプラインでのエラー原因特定に十分な程度に
+- `logging`のHandler`設定・出力設定  
+  CLIアプリのため標準出力(`StreamHandler`)とファイル出力(`RotatingFileHandler`)を個別に調整
+  ログレベルも分け、前者は`WARNING`、後者は本番時も`DEBUG`へ設定し、エラー詳細はファイル確認へ誘導
 - 定数をメイン処理で定義・辞書に格納し、引数を下層まで受け渡す構成（可読性）
+  - 鍵の一元管理（`validate.py`）
   - 最後は`**dict`で処理
 
 ## このプロジェクトで学んだこと
 - HTTPメソッドとRESTの考え方
 - HTTPレスポンスコードによる場合分けの仕方
 - XML形式の取り扱い（ElementTree、名前空間、XPath）
-- ログレベルの使い分け
 - gitのブランチとプルリクエストの使い方
 - パッケージングの方法（`__main__.py`の意味、pyproject.toml）
+  - 単体モジュールやライブラリとしての外部利用のしやすさの観点
 
 ## 感じたこと
 
@@ -156,7 +159,7 @@ python -m cha2hatena path/to/conversation.json
 
 ## License
 
-Apache License 2.0 - See [LICENSE](LICENSE) for details.
+MIT LICENSE
 
 ## 参考資料
 
