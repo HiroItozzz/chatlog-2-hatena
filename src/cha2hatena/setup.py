@@ -79,9 +79,17 @@ def config_setup() -> tuple[dict, dict]:
             raise ValueError("Config file is empty or invalid YAML")
     except yaml.YAMLError as e:
         raise ValueError(f"Invalid YAML syntax in config file: {e}")
-
+    
+    if config["ai"]["model"].startswith("deepseek"):
+        api_key=os.getenv("DEEPSEEK_API_KEY","")
+    elif config["ai"]["model"].startswith("gemini"):
+        api_key = os.getenv("GEMINI_API_KEY", "")
+    else:
+        logging.critical("モデル名が正しくありません。実行を中止します。")
+        logging.critical(f"モデル名：{config['ai']['model']}")
+    
     secret_keys = {
-        "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY", ""),
+        "API_KEY": api_key,
         "client_key": os.getenv("HATENA_CONSUMER_KEY", ""),
         "client_secret": os.getenv("HATENA_CONSUMER_SECRET", ""),
         "resource_owner_key": os.getenv("HATENA_ACCESS_TOKEN", ""),

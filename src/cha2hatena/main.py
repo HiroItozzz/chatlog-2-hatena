@@ -23,10 +23,10 @@ except Exception as e:
 # グローバル定数
 PRESET_CATEGORIES = config["blog"]["preset_category"]
 LLM_CONFIG = {
-    "custom_prompt": config["ai"]["prompt"],
+    "prompt": config["ai"]["prompt"],
     "model": config["ai"]["model"],
     "temperature": config["ai"]["temperature"],
-    "api_key": SECRET_KEYS.pop("GEMINI_API_KEY"),
+    "api_key": SECRET_KEYS.pop("API_KEY"),
 }
 LINE_ACCESS_TOKEN = SECRET_KEYS.pop("LINE_CHANNEL_ACCESS_TOKEN")
 HATENA_SECRET_KEYS = SECRET_KEYS
@@ -172,7 +172,7 @@ def main():
                 "entry_title": title,
                 "entry_content": content[:30],
                 "categories": ",".join(categories),
-                "custom_prompt": LLM_CONFIG["custom_prompt"][:20],
+                "prompt": LLM_CONFIG["prompt"][:20],
                 "model": LLM_CONFIG["model"],
                 "temperature": LLM_CONFIG["temperature"],
                 "input_letter_count": len(conversation),
