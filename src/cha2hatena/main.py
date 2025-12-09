@@ -11,7 +11,7 @@ from . import json_loader as jl
 from .setup import initialization
 
 logger = logging.getLogger(__name__)
-parent_logger = logging.getLogger("chat2hatena")
+parent_logger = logging.getLogger("cha2hatena")
 
 try:
     DEBUG, SECRET_KEYS, config = initialization(parent_logger)
@@ -25,7 +25,7 @@ PRESET_CATEGORIES = config["blog"]["preset_category"]
 LLM_CONFIG = {
     "custom_prompt": config["ai"]["prompt"],
     "model": config["ai"]["model"],
-    "thoughts_level": config["ai"]["thoughts_level"],
+    "temperature": config["ai"]["temperature"],
     "api_key": SECRET_KEYS.pop("GEMINI_API_KEY"),
 }
 LINE_ACCESS_TOKEN = SECRET_KEYS.pop("LINE_CHANNEL_ACCESS_TOKEN")
@@ -41,8 +41,11 @@ def hinge(params:dict) -> tuple[dict, dict]:
        return ai_client.gemini_client(**params)
     
     elif params["model"].startswith("deepseek"):
+       import deepseek_client
        return ai_client.deepseek_client(**params)
     else:
+        logger.error(f"モデル名が正しくありません。model: {params['model']}")
+        logger.error("正しく入力し直してください。実行を中止します。")
         raise ValueError
     
 
@@ -171,7 +174,7 @@ def main():
                 "categories": ",".join(categories),
                 "custom_prompt": LLM_CONFIG["custom_prompt"][:20],
                 "model": LLM_CONFIG["model"],
-                "thinking_budget": LLM_CONFIG["thoughts_level"],
+                "temperature": LLM_CONFIG["temperature"],
                 "input_letter_count": len(conversation),
                 "output_letter_count": llm_stats["output_letter_count"],
                 "input_tokens": llm_stats["input_tokens"],

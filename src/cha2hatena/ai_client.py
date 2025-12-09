@@ -44,16 +44,17 @@ class LlmFee:
 
 def gemini_client(
     conversation: str,
-    gemini_api_key: str,
+    api_key: str,
     model: str = "gemini-2.5-pro",
+    temperature: float = 1.0,
     thoughts_level: int = -1,
     custom_prompt: str = "以下の内容を日本語で１０００字以内で要約し、個人用のブログ向け文章にしてください。",
 ) -> tuple[dict, dict]:
     logger.warning("Geminiからの応答を待っています。")
-    logger.debug(f"APIリクエスト中。APIキー: ...{gemini_api_key[-5:]}")
+    logger.debug(f"APIリクエスト中。APIキー: ...{api_key[-5:]}")
 
     # api_key引数なしでも、環境変数"GEMNI_API_KEY"の値を勝手に参照するが、可読性のため代入
-    client = genai.Client(api_key=gemini_api_key)
+    client = genai.Client(api_key=api_key)
 
     statement = f"またその最後には、「この記事は {model} により自動生成されています」と目立つように注記してください。"
     custom_prompt = custom_prompt + statement
@@ -66,6 +67,7 @@ def gemini_client(
                 model=model,
                 contents=f"{custom_prompt}\n\n{conversation}",
                 config=types.GenerateContentConfig(
+                    temperature=temperature,
                     thinking_config=types.ThinkingConfig(thinking_budget=thoughts_level),
                     response_mime_type="application/json",  # 構造化出力
                     response_json_schema=BlogPost.model_json_schema(),

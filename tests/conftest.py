@@ -7,7 +7,7 @@ def mock_get_summary(monkeypatch):
         conversation: str,
         api_key: str,
         model: str,
-        thoughts_level: int,
+        temperature: float,
         custom_prompt: str,
     ) -> tuple[dict, dict]:
 

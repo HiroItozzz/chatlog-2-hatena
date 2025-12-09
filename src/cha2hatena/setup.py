@@ -47,13 +47,20 @@ def config_validation(config_dict: dict, secret_keys: dict) -> tuple[dict,dict]:
                 break
             else:
                 logger.warning(f"{name}が見つかりませんでした。要約をはてなブログへ投稿します。")
-
+    
+    '''
     # thoughts_levelの範囲チェック
     thoughts_level = config_dict["ai"]["thoughts_level"]
     if thoughts_level is not None and not (-1 <= thoughts_level <= 24576):
         raise ValueError("ai.thoughts_level must be between -1 and 24576")
     elif (0 <= thoughts_level < 128) and config_dict["ai"]["model"] == "gemini-2.5-pro":
         raise ValueError("ai.thoughts_level must be between 128 and 24576 or -1 forgemini-2.5-pro ")
+    '''
+    
+    # temperatureの範囲チェック
+    temperature = config_dict["ai"]["temperature"]
+    if temperature is not None and not (0 <= temperature <= 2.0):
+        raise ValueError("ai.temperature must be between 0 and 2.0")
 
     return config_dict, secret_keys
 
@@ -113,7 +120,7 @@ def initialization(logger:logging.Logger) ->tuple:
     try:
         DEBUG_ENV = os.getenv("DEBUG", "False").lower() in ("true", "t", "1")
         initial_level = logging.DEBUG if DEBUG_ENV else logging.WARNING
-        console_format = "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+        console_format = "%(levelname)s - %(name)s - %(message)s"
     except Exception:
         DEBUG_ENV = False
         initial_level = logging.WARNING
@@ -130,6 +137,6 @@ def initialization(logger:logging.Logger) ->tuple:
     DEBUG = DEBUG_ENV if DEBUG_ENV else DEBUG_CONFIG
     if DEBUG and not DEBUG_ENV:
         stream_handler.setLevel(logging.DEBUG)
-        stream_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s"))
+        stream_handler.setFormatter(logging.Formatter("%(levelname)s - %(name)s - %(message)s"))
 
     return DEBUG, secret_keys, config

@@ -1,0 +1,18 @@
+POST https://blog.hatena.ne.jp/{はてなID}/{ブログID}/atom/entry
+
+<?xml version="1.0" encoding="utf-8"?>
+<entry xmlns="http://www.w3.org/2005/Atom"
+       xmlns:app="http://www.w3.org/2007/app">
+  <title>エントリタイトル</title>
+  <author><name>name</name></author>
+  <content type="text/plain">
+    ** エントリ本文
+  </content>
+  <updated>2008-01-01T00:00:00</updated>
+  <category term="Scala" />
+  <app:control>
+    <app:draft>{yes | no}</app:draft>
+    <app:preview>{yes | no}</app:preview>
+  </app:control>
+  <hatenablog:custom-url xmlns:hatenablog="http://www.hatena.ne.jp/info/xmlns#hatenablog">2008-happy-new-year</hatenablog:custom-url>
+</entry>
