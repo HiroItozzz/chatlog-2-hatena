@@ -3,9 +3,9 @@ from datetime import datetime
 import pytest
 
 from cha2hatena import hatenablog_poster
+from cha2hatena.main import create_ai_client
 from cha2hatena.llm.gemini_client import GeminiClient
 from cha2hatena.llm.deepseek_client import DeepseekClient
-from cha2hatena.llm.utils import create_ai_client
 from cha2hatena.llm.llm_fee import LlmFee
 
 logger = logging.getLogger()
