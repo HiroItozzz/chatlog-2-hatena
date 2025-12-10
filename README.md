@@ -135,14 +135,10 @@ python -m cha2hatena path/to/conversation.json
 - 対話型ログ解析: Claude ExporterでエクスポートしたJSONファイルをAI用に処理
 
 ## 工夫したこと
-- Gemini構造化出力（`pydantic`を使用）によってGeminiによる出力をjson形に限定
+- PydanticモデルによるGemini構造化出力
   - はてなへの入力（XML形式、タイトル・内容・カテゴリ）との一致を強く保証
-- `logging`のHandler`設定・出力設定  
-  CLIアプリのため標準出力(`StreamHandler`)とファイル出力(`RotatingFileHandler`)を個別に調整
-  ログレベルも分け、前者は`WARNING`、後者は本番時も`DEBUG`へ設定し、エラー詳細はファイル確認へ誘導
-- 定数をメイン処理で定義・辞書に格納し、引数を下層まで受け渡す構成（可読性）
-  - 鍵の一元管理（`validate.py`）
-  - 最後は`**dict`で処理
+- デバッグモードと出力先に応じた`logging`の場合分け
+- 鍵の一元管理（`setup.py`）
 
 ## このプロジェクトで学んだこと
 - HTTPメソッドとRESTの考え方
