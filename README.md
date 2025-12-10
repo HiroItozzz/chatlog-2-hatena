@@ -10,7 +10,7 @@ AIとの会話が保存された特定の形式のJSONファイルを解析・�
 （下準備： 下記Chrome拡張機能でAIとの対話ログ(.json)をDL）
 - jsonファイルをショートカットへドラッグアンドドロップ
 - その日に行われた一連の会話を抽出（Claudeログの場合）
-- 会話をGemini 2.5 proが自動で要約、タイトル、カテゴリーを決定
+- 会話をGeminiまたはDeepseekが自動で要約、タイトル、カテゴリーを決定
 - その内容をはてなブログへ自動投稿
 - LINEで投稿完了通知
 
@@ -61,6 +61,7 @@ Claude/ChatGPT/Gemini Exporterを使用してClaudeとの対話をjson形式で�
 `.env`ファイルを作成し、APIキーを設定、初期設定：
 ```env
 GEMINI_API_KEY=your_gemini_api_key
+DEEPSEEK_API_KEY=your_deepseek_api_key  # geminiとdeepseekの少なくとも一方を入力
 HATENA_CONSUMER_KEY=your_consumer_key
 HATENA_CONSUMER_SECRET=your_consumer_secret
 ...
@@ -124,6 +125,7 @@ python -m cha2hatena path/to/conversation.json
 
 ### ✅ 実装済み
 
+- Deepseekによる要約に対応
 - パッケージ化（`src/cha2hatena/`構成）
 - 複数ファイル入力対応 - 複数のスレッドのログもまとめてGeminiへ入力
 - 投稿完了通知機能 - LINEとの連携

@@ -12,7 +12,7 @@ ai:
     - 厳守事項：機密情報や個人特定につながる情報は漏らさないでください
 
     会話ログ：
-  model: "deepseek-reasoner" # "gemini-2.5-flash", "gemini-2.5-pro", "deepseek-chat" or "deepseek-reasoner"
+  model: "gemini-2.5-flash" # "gemini-2.5-flash", "gemini-2.5-pro", "deepseek-chat" or "deepseek-reasoner"
   temperature: 1.2 # 生成ごとの揺れ
   max_len_content: 1500 # （未実装）Geminiが返すはてなブログ本文の最大文字数
 

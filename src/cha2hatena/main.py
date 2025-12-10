@@ -9,6 +9,7 @@ import yfinance as yf
 from . import hatenablog_poster, line_message
 from . import json_loader as jl
 from .llm import deepseek_client, gemini_client
+from .llm.conversational_ai import ConversationalAi
 from .llm.llm_fee import LlmFee
 from .setup import initialization
 
@@ -49,12 +50,12 @@ def create_ai_client(params):
 
 def summarize_and_upload(
     preset_categories: list,
-    llm_config: dict,
+    llm_client: ConversationalAi,
     hatena_secret_keys: dict,
     debug_mode: bool = False,
 ) -> tuple[dict, dict]:
     # GoogleへAPIリクエスト
-    llm_outputs, llm_stats = create_ai_client(llm_config).get_summary()
+    llm_outputs, llm_stats = llm_client.get_summary()
 
     # はてなブログへ投稿 投稿結果を辞書型で返却
     response_dict = hatenablog_poster.blog_post(
@@ -107,9 +108,12 @@ def main():
 
         LLM_CONFIG["conversation"] = conversation
 
+        # AIオブジェクト作成
+        ai_instance = create_ai_client(LLM_CONFIG)
+
         # Googleで要約取得 & はてなへ投稿
         result, llm_stats = summarize_and_upload(
-            PRESET_CATEGORIES, LLM_CONFIG, HATENA_SECRET_KEYS, debug_mode=DEBUG
+            PRESET_CATEGORIES, ai_instance, HATENA_SECRET_KEYS, debug_mode=DEBUG
         )
 
         url = result.get("link_alternate", "")
