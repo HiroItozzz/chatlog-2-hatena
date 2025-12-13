@@ -4,6 +4,7 @@ from .conversational_ai import BlogPost, ConversationalAi
 
 logger = logging.getLogger(__name__)
 
+
 class GeminiClient(ConversationalAi):
     def get_summary(self):
         from google import genai

@@ -128,7 +128,6 @@ def blog_post(
     updated: datetime | None = None,
     is_draft: bool = False,
 ) -> dict:
-
     xml_entry = xml_unparser(title, content, categories, preset_categories, author, updated, is_draft)
     res = hatena_oauth(xml_entry, hatena_secret_keys)
 

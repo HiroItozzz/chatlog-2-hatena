@@ -37,6 +37,7 @@ HATENA_SECRET_KEYS = SECRET_KEYS
 
 ######################################################
 
+
 def create_ai_client(params):
     if params["model"].startswith("gemini"):
         client = gemini_client.GeminiClient(**params)
@@ -46,7 +47,7 @@ def create_ai_client(params):
         logger.error("モデル名が正しくありません。実行を中止します。")
         logger.error(f"モデル名: {params['model']}")
     return client
-    
+
 
 def summarize_and_upload(
     preset_categories: list,
@@ -87,7 +88,6 @@ def append_csv(path: Path, df: pd.DataFrame):
             logger.warning(f"CSVにデータを追記しました: {path.name}")
     except Exception:
         logger.exception("CSVファイルへの書き込み中にエラーが発生しました。")
-        
 
 
 def main():
@@ -112,9 +112,7 @@ def main():
         ai_instance = create_ai_client(LLM_CONFIG)
 
         # Googleで要約取得 & はてなへ投稿
-        result, llm_stats = summarize_and_upload(
-            PRESET_CATEGORIES, ai_instance, HATENA_SECRET_KEYS, debug_mode=DEBUG
-        )
+        result, llm_stats = summarize_and_upload(PRESET_CATEGORIES, ai_instance, HATENA_SECRET_KEYS, debug_mode=DEBUG)
 
         url = result.get("link_alternate", "")
         url_edit = result.get("link_edit_user", "")
@@ -133,20 +131,21 @@ def main():
         # LINE通知
         if result["status_code"] == 201:
             line_text = "投稿完了です。今日も長い時間お疲れさまでした！\n"
-            line_text = line_text + f"タイトル：{title}\n確認: {url}\n編集: {url_edit}\n下書きモード: {result.get('is_draft')}"
+            line_text = (
+                line_text + f"タイトル：{title}\n確認: {url}\n編集: {url_edit}\n下書きモード: {result.get('is_draft')}"
+            )
         else:
             line_text = "要約の保存完了。ブログ投稿は行われませんでした。今日も長い時間お疲れ様でした。\n"
             line_text = line_text + f"タイトル：{title}\n本文: \n{content[:200]} ..."
-            
+
         try:
             line_message.line_messenger(line_text, LINE_ACCESS_TOKEN)
         except Exception as e:
             logger.error("エラー：LINE通知は行われませんでした。")
             logger.info(f"詳細: {e}")
 
-
         fee = LlmFee(LLM_CONFIG["model"])
-        i_fee = fee.calculate(llm_stats["input_tokens"],"input")
+        i_fee = fee.calculate(llm_stats["input_tokens"], "input")
         th_fee = fee.calculate(llm_stats["thoughts_tokens"], "thoughts")
         o_fee = fee.calculate(llm_stats["output_tokens"], "output")
         total_fee = i_fee + th_fee + o_fee
@@ -158,7 +157,7 @@ def main():
             total_JPY = total_fee * dy_rate
         except Exception as e:
             logger.error("ヤフーファイナンスから為替レートを取得できませんでした。詳細はapp.logを確認してください")
-            logger.info(f"詳細: {e}",exc_info=True)
+            logger.info(f"詳細: {e}", exc_info=True)
             total_JPY = None
 
         ai_names = jl.ai_names_from_paths(input_paths)

@@ -12,9 +12,7 @@ class Ingredient(BaseModel):
 
 class Recipe(BaseModel):
     recipe_name: str = Field(description="The name of the recipe.")
-    prep_time_minutes: Optional[int] = Field(
-        description="Optional time in minutes to prepare the recipe."
-    )
+    prep_time_minutes: Optional[int] = Field(description="Optional time in minutes to prepare the recipe.")
     ingredients: List[Ingredient]
     instructions: List[str]
 

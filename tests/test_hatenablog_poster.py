@@ -8,7 +8,6 @@ from cha2hatena.hatenablog_poster import hatena_oauth, parse_response, xml_unpar
 
 
 def test_uploader():
-
     load_dotenv(override=True)
 
     """Uploader統合テスト"""

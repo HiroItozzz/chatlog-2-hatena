@@ -20,9 +20,7 @@ CONSUMER_SECRET = os.getenv("HATENA_CONSUMER_SECRET", "").strip()
 
 # callback_uriはリダイレクト先を指定する引数：
 # "oob"はそれが存在しないことを表す（"Out of Band"）。自作アプリの場合必要
-oauth = OAuth1Session(
-    client_key=CONSUMER_KEY, client_secret=CONSUMER_SECRET, callback_uri="oob"
-)
+oauth = OAuth1Session(client_key=CONSUMER_KEY, client_secret=CONSUMER_SECRET, callback_uri="oob")
 
 # 一時認証用のキーのペアを取得
 # scope引数で投稿のための権限を指定

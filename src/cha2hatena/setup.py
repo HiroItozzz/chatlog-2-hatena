@@ -10,7 +10,8 @@ from dotenv import load_dotenv
 logger = logging.getLogger(__name__)
 load_dotenv(override=True)
 
-def get_nested_config(config_dict:dict, key_path:Path)-> str | None:
+
+def get_nested_config(config_dict: dict, key_path: Path) -> str | None:
     """ネストした設定値を取得 (例: 'ai.model' -> config['ai']['model'])"""
 
     keys = key_path.split(".")
@@ -23,7 +24,7 @@ def get_nested_config(config_dict:dict, key_path:Path)-> str | None:
         return None
 
 
-def config_validation(config_dict: dict, secret_keys: dict) -> tuple[dict,dict]:
+def config_validation(config_dict: dict, secret_keys: dict) -> tuple[dict, dict]:
     """設定ファイルとAPIキーの妥当性を検証"""
 
     required_keys = ["ai.model", "ai.prompt", "paths.output_dir", "other.debug"]
@@ -42,21 +43,23 @@ def config_validation(config_dict: dict, secret_keys: dict) -> tuple[dict,dict]:
                 logger.warning(f"{name}が見つかりませんでした。Geminiによる要約を試みます。")
                 break
             elif 2 < idx <= 4:
-                logger.warning(f"{name}が見つかりませんでした。ブログを投稿するにははてなブログの初回認証を行う必要があります。")
+                logger.warning(
+                    f"{name}が見つかりませんでした。ブログを投稿するにははてなブログの初回認証を行う必要があります。"
+                )
                 logger.warning("Geminiによる要約を試みます。")
                 break
             else:
                 logger.warning(f"{name}が見つかりませんでした。要約をはてなブログへ投稿します。")
-    
-    '''
+
+    """
     # thoughts_levelの範囲チェック
     thoughts_level = config_dict["ai"]["thoughts_level"]
     if thoughts_level is not None and not (-1 <= thoughts_level <= 24576):
         raise ValueError("ai.thoughts_level must be between -1 and 24576")
     elif (0 <= thoughts_level < 128) and config_dict["ai"]["model"] == "gemini-2.5-pro":
         raise ValueError("ai.thoughts_level must be between 128 and 24576 or -1 forgemini-2.5-pro ")
-    '''
-    
+    """
+
     # temperatureの範囲チェック
     temperature = config_dict["ai"]["temperature"]
     if temperature is not None and not (0 <= temperature <= 2.0):
@@ -79,15 +82,15 @@ def config_setup() -> tuple[dict, dict]:
             raise ValueError("Config file is empty or invalid YAML")
     except yaml.YAMLError as e:
         raise ValueError(f"Invalid YAML syntax in config file: {e}")
-    
+
     if config["ai"]["model"].startswith("deepseek"):
-        api_key=os.getenv("DEEPSEEK_API_KEY","")
+        api_key = os.getenv("DEEPSEEK_API_KEY", "")
     elif config["ai"]["model"].startswith("gemini"):
         api_key = os.getenv("GEMINI_API_KEY", "")
     else:
         logging.critical("モデル名が正しくありません。実行を中止します。")
         logging.critical(f"モデル名：{config['ai']['model']}")
-    
+
     secret_keys = {
         "API_KEY": api_key,
         "client_key": os.getenv("HATENA_CONSUMER_KEY", ""),
@@ -104,26 +107,26 @@ def config_setup() -> tuple[dict, dict]:
     return config, secret_keys
 
 
-def log_setup(logger:logging.Logger, initial_level:int, console_format:str) ->tuple:
-    '''ハンドラー設定'''
+def log_setup(logger: logging.Logger, initial_level: int, console_format: str) -> tuple:
+    """ハンドラー設定"""
 
     stream_handler = logging.StreamHandler(sys.stdout)
     stream_handler.setFormatter(logging.Formatter(console_format))
     stream_handler.setLevel(initial_level)
-    file_handler = RotatingFileHandler("app.log", maxBytes=int(0.5*1024*1024), backupCount=1 ,encoding="utf-8")
+    file_handler = RotatingFileHandler("app.log", maxBytes=int(0.5 * 1024 * 1024), backupCount=1, encoding="utf-8")
     file_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s"))
     file_handler.setLevel(logging.DEBUG)
 
     logger.setLevel(logging.DEBUG)
     logger.addHandler(file_handler)
     logger.addHandler(stream_handler)
-    
+
     return stream_handler, file_handler
 
 
-def initialization(logger:logging.Logger) ->tuple:
-    '''DEBUGモード判定、ログレベル決定'''
-    
+def initialization(logger: logging.Logger) -> tuple:
+    """DEBUGモード判定、ログレベル決定"""
+
     # DEBUGモード・ログレベル仮判定
     try:
         DEBUG_ENV = os.getenv("DEBUG", "False").lower() in ("true", "t", "1")
@@ -135,11 +138,11 @@ def initialization(logger:logging.Logger) ->tuple:
         console_format = "%(message)s"
 
     # ハンドラー設定
-    stream_handler, file_handler = log_setup(logger,initial_level, console_format)
+    stream_handler, file_handler = log_setup(logger, initial_level, console_format)
 
     # 設定読み込み
     config, secret_keys = config_setup()
-    
+
     # DEBUGモード・ログレベル判定
     DEBUG_CONFIG = config["other"]["debug"].lower() in ("true", "1", "t")
     DEBUG = DEBUG_ENV if DEBUG_ENV else DEBUG_CONFIG

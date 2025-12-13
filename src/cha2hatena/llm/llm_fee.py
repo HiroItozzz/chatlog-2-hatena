@@ -3,39 +3,44 @@ from abc import ABC, abstractmethod
 
 logger = logging.getLogger(__name__)
 
+
 class BaseLlmFee(ABC):
-    def __init__(self, model:str):
+    def __init__(self, model: str):
         self.model = model
 
     @abstractmethod
     def fees(self):
         pass
+
     @abstractmethod
     def model_list(self):
         pass
 
     @abstractmethod
-    def calculate(self, tokens:int, token_type:str) -> float:
+    def calculate(self, tokens: int, token_type: str) -> float:
         pass
 
+
 class LlmFee(BaseLlmFee):
-    '''2025/12/09現在'''
+    """2025/12/09現在"""
+
     _fees = {
-        "gemini-2.5-flash": {"input": 0.03, "output": 2.5},  # $per 1M tokens 
+        "gemini-2.5-flash": {"input": 0.03, "output": 2.5},  # $per 1M tokens
         "gemini-2.5-pro": {
             "under_0.2M": {"input": 1.25, "output": 10.00},
-            "over_0.2M": {"input": 2.5, "output": 15.0},},
-        "deepseek":{"input(cache_hit)": 0.028, "input(cache_miss)":0.28, "output": 0.42}
+            "over_0.2M": {"input": 2.5, "output": 15.0},
+        },
+        "deepseek": {"input(cache_hit)": 0.028, "input(cache_miss)": 0.28, "output": 0.42},
     }
     _model_list = ["gemini-2.5-flash", "gemini-2.5-pro", "deepseek-chat", "deepseek-reasoner"]
 
     @property
     def fees(self):
         return self._fees
-    
+
     @property
     def model_list(self):
-        return self._model_list        
+        return self._model_list
 
     def calculate(self, tokens, token_type) -> float:
         model_name = self.model
@@ -58,11 +63,12 @@ class LlmFee(BaseLlmFee):
             if tokens <= 200000:
                 dollar_per_1M_tokens = base_fee["under_0.2M"][token_type]
             else:
-                 dollar_per_1M_tokens = base_fee["over_0.2M"][token_type]
-            
+                dollar_per_1M_tokens = base_fee["over_0.2M"][token_type]
+
         return dollar_per_1M_tokens * tokens / 1000000
 
-'''
+
+"""
 class DeepseekFee(LlmFee):
     _fees = {"input(cache_hit)": 0.028, "input(cache_miss)":0.28, "output": 0.42}
     _model_list = ["deepseek-chat", "deepseek-reasoner"]
@@ -83,4 +89,4 @@ class DeepseekFee(LlmFee):
             dollar_per_1M_tokens = self.fees["input(cache_miss)"]
         
         return dollar_per_1M_tokens * tokens / 1000000
-'''
+"""
