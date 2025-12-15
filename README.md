@@ -135,22 +135,25 @@ python -m cha2hatena path/to/conversation.json
 - 対話型ログ解析: Claude ExporterでエクスポートしたJSONファイルをAI用に処理
 
 ## 工夫したこと
-- Gemini構造化出力（`pydantic`を使用）によってGeminiによる出力をjson形に限定
+- Gemini構造化出力（`Pydantic`利用）によってGeminiからの出力をjson形に限定
   - はてなへの入力（XML形式、タイトル・内容・カテゴリ）との一致を強く保証
-- `logging`のHandler`設定・出力設定  
-  CLIアプリのため標準出力(`StreamHandler`)とファイル出力(`RotatingFileHandler`)を個別に調整
-  ログレベルも分け、前者は`WARNING`、後者は本番時も`DEBUG`へ設定し、エラー詳細はファイル確認へ誘導
-- 定数をメイン処理で定義・辞書に格納し、引数を下層まで受け渡す構成（可読性）
-  - 鍵の一元管理（`validate.py`）
-  - 最後は`**dict`で処理
+- `logging`のHandler設定・出力設定  
+  - CLIアプリのため標準出力(StreamHandler)とファイル出力(RotatingFileHandler)を個別に調整
+  - エラー詳細はログファイル確認へ誘導
+- 鍵の一元管理（`setup.py`）
+- 使用トークンを保持するクラス(`TokenStats`)のプロパティの構成
+  - 初期化時はトークン数のみ入力。実コスト(米ドル換算)は`@property`で遅延計算
 
 ## このプロジェクトで学んだこと
 - HTTPメソッドとRESTの考え方
 - HTTPレスポンスコードによる場合分けの仕方
 - XML形式の取り扱い（ElementTree、名前空間、XPath）
 - gitのブランチとプルリクエストの使い方
-- パッケージングの方法（`__main__.py`の意味、pyproject.toml）
+- パッケージングの方法（`__main__.py`の意味、pyproject.toml等）
   - 単体モジュールやライブラリとしての外部利用のしやすさの観点
+- 基本的には辞書ではなくクラスがよいという発想
+  - IDEによる自動補完が聞く点
+  - Pydanticによる型安全性、ABCを利用したダックタイピング
 
 ## 感じたこと
 
