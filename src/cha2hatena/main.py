@@ -10,7 +10,6 @@ from . import hatenablog_poster, line_message
 from . import json_loader as jl
 from .llm import deepseek_client, gemini_client
 from .llm.conversational_ai import ConversationalAi, LlmConfig
-from .llm.llm_stats import TokenStats
 from .setup import initialization
 
 logger = logging.getLogger(__name__)
@@ -40,27 +39,6 @@ def create_ai_client(config: LlmConfig):
         logger.error("モデル名が正しくありません。実行を中止します。")
         logger.error(f"モデル名: {config.model}")
     return client
-
-def summarize_and_upload(
-    preset_categories: list,
-    llm_client: ConversationalAi,
-    hatena_secret_keys: dict,
-    debug_mode: bool = False,
-) -> tuple[dict, TokenStats]:
-    # GoogleへAPIリクエスト
-    llm_outputs, llm_stats = llm_client.get_summary()
-
-    # はてなブログへ投稿 投稿結果を辞書型で返却
-    response_dict = hatenablog_poster.blog_post(
-        **llm_outputs,
-        hatena_secret_keys=hatena_secret_keys,
-        preset_categories=preset_categories,
-        author=None,  # str | None   Noneの場合自分のはてなID
-        updated=None,  # datetime | None  公開時刻設定。Noneの場合5分後に公開
-        is_draft=debug_mode,  # デバッグ時は下書き
-    )
-
-    return response_dict, llm_stats
 
 
 def append_csv(path: Path, df: pd.DataFrame):
@@ -100,16 +78,26 @@ def main():
         LLM_CONFIG.conversation = jl.json_loader(input_paths)
 
         # AIオブジェクト作成
-        ai_instance = create_ai_client(LLM_CONFIG)
+        ai_instance: ConversationalAi = create_ai_client(LLM_CONFIG)
 
-        # Googleで要約取得 & はてなへ投稿
-        result, llm_stats = summarize_and_upload(PRESET_CATEGORIES, ai_instance, HATENA_SECRET_KEYS, debug_mode=DEBUG)
+        # AIで要約取得        
+        llm_outputs, llm_stats = ai_instance.get_summary()
 
-        url = result.get("link_alternate", "")
-        url_edit = result.get("link_edit_user", "")
-        title = result.get("title", "")
-        content = result.get("content", "")
-        categories = result.get("categories", [])
+        # はてなブログへ投稿 投稿結果を辞書型で返却
+        blogpost_result = hatenablog_poster.blog_post(
+                            **llm_outputs,
+                            preset_categories=PRESET_CATEGORIES,
+                            hatena_secret_keys=HATENA_SECRET_KEYS, 
+                            author=None,  # str | None   Noneの場合自分のはてなID
+                            updated=None,  # datetime | None  公開時刻設定。Noneの場合5分後に公開
+                            is_draft=DEBUG,  # デバッグ時は下書き                   
+                        )
+        
+        url = blogpost_result.get("link_alternate", "")
+        url_edit = blogpost_result.get("link_edit_user", "")
+        title = blogpost_result.get("title", "")
+        content = blogpost_result.get("content", "")
+        categories = blogpost_result.get("categories", [])
 
         logger.warning("はてなブログへの投稿に成功しました。")
         logger.warning(f"URL: {url_edit}")
@@ -120,10 +108,10 @@ def main():
         print("-" * 50)
 
         # LINE通知
-        if result["status_code"] == 201:
+        if blogpost_result["status_code"] == 201:
             line_text = "投稿完了です。今日も長い時間お疲れさまでした！\n"
             line_text = (
-                line_text + f"タイトル：{title}\n確認: {url}\n編集: {url_edit}\n下書きモード: {result.get('is_draft')}"
+                line_text + f"タイトル：{title}\n確認: {url}\n編集: {url_edit}\n下書きモード: {blogpost_result.get('is_draft')}"
             )
         else:
             line_text = "要約の保存完了。ブログ投稿は行われませんでした。今日も長い時間お疲れ様でした。\n"
@@ -153,7 +141,7 @@ def main():
                 "conversation_title": conversation_titles,
                 "AI_name": " ".join(ai_names),
                 "entry_URL": url,
-                "is_draft": result.get("is_draft"),
+                "is_draft": blogpost_result.get("is_draft"),
                 "entry_title": title,
                 "entry_content": content[:30],
                 "categories": ",".join(categories),

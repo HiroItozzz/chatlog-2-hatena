@@ -8,9 +8,11 @@ logger = logging.getLogger(__name__)
 
 def test_main(
     monkeypatch,
-    __2_mock_summarize_and_upload,
+    mock_GeminiClient,
+    mock_create_ai_client
 ):
     argv = ["sample/Claude-sample.json", "sample/ChatGPT-sample.json"]
     monkeypatch.setattr(sys, "argv", argv)
-    monkeypatch.setattr("cha2hatena.main.summarize_and_upload", __2_mock_summarize_and_upload)
+    monkeypatch.setattr("cha2hatena.main.create_ai_client", mock_create_ai_client)
+    monkeypatch.setattr("cha2hatena.main.gemini_client.GeminiClient", mock_GeminiClient)
     main.main()
