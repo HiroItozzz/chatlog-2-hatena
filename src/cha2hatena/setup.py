@@ -107,14 +107,14 @@ def initialization(logger: logging.Logger) -> tuple:
     """DEBUGモード判定、ログレベル決定"""
 
     # DEBUGモード・ログレベル仮判定
-    try:
-        DEBUG_ENV = os.getenv("DEBUG", "False").lower() in ("true", "t", "1")
-        initial_level = logging.DEBUG if DEBUG_ENV else logging.WARNING
+    DEBUG_ENV = os.getenv("DEBUG", "False").lower() in ("true", "t", "1")
+
+    if DEBUG_ENV:
         console_format = "%(levelname)s - %(name)s - %(message)s"
-    except Exception:
-        DEBUG_ENV = False
-        initial_level = logging.WARNING
+        initial_level = logging.DEBUG
+    else:
         console_format = "%(message)s"
+        initial_level = logging.WARNING
 
     # ハンドラー設定
     stream_handler, file_handler = log_setup(logger, initial_level, console_format)
