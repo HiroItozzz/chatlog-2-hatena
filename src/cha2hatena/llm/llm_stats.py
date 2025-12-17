@@ -12,7 +12,7 @@ class TokenStats:
         output_tokens: int,
         input_letter_count: int,
         output_letter_count: int,
-        model: str
+        model: str,
     ):
         self.input_tokens = input_tokens
         self.thoughts_tokens = thoughts_tokens
@@ -20,36 +20,29 @@ class TokenStats:
         self.input_letter_count = input_letter_count
         self.output_letter_count = output_letter_count
         self.model_name = model
-        
         # 遅延計算用のキャッシュ
         self._input_fee = None
         self._thoughts_fee = None
         self._output_fee = None
-        
     @property
     def input_fee(self) -> float:
         if self._input_fee is None:
             self._input_fee = LlmFee(self.model_name).calculate(self.input_tokens, "input")
         return self._input_fee
-        
     @property
     def thoughts_fee(self) -> float:
         if self._thoughts_fee is None:
             self._thoughts_fee = LlmFee(self.model_name).calculate(self.thoughts_tokens, "thoughts")
         return self._thoughts_fee
-        
     @property
     def output_fee(self) -> float:
         if self._output_fee is None:
             self._output_fee = LlmFee(self.model_name).calculate(self.output_tokens, "output")
         return self._output_fee
-        
     @property
     def total_fee(self) -> float:
         return self.input_fee + self.thoughts_fee + self.output_fee
 
-
-    
 
 class BaseLlmFee(ABC):
     def __init__(self, model: str):
@@ -88,7 +81,7 @@ class LlmFee(BaseLlmFee):
     def model_list(self):
         return self._model_list
 
-    def calculate(self, tokens, token_type:str) -> float:
+    def calculate(self, tokens, token_type: str) -> float:
         model_name = self.model
         token_type = "output" if token_type == "thoughts" else token_type
         if self.model not in self.model_list:
@@ -112,8 +105,6 @@ class LlmFee(BaseLlmFee):
                 dollar_per_1M_tokens = base_fee["over_0.2M"][token_type]
 
         return dollar_per_1M_tokens * tokens / 1000000
-
-
 
 
 """

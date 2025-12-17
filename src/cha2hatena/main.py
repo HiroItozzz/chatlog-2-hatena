@@ -1,13 +1,15 @@
+import csv
 import logging
 import sys
 from datetime import datetime
 from pathlib import Path
 
-import pandas as pd
+import gspread
 import yfinance as yf
 
-from . import hatenablog_poster, line_message
+from . import hatenablog_poster
 from . import json_loader as jl
+from . import line_message
 from .llm import deepseek_client, gemini_client
 from .llm.conversational_ai import ConversationalAi, LlmConfig
 from .setup import initialization
@@ -41,17 +43,15 @@ def create_ai_client(config: LlmConfig):
     return client
 
 
-def append_csv(path: Path, df: pd.DataFrame):
+def append_csv(path: Path, data: dict):
     """pathがなければ作成し、CSVに1行追記"""
-    is_new_file = not path.exists()
+    is_new_file = not path.exists() or path.stat().st_size == 0
     try:
-        df.to_csv(
-            path,
-            encoding="utf-8-sig",
-            index=False,
-            mode="a",
-            header=is_new_file,  # ファイルがなければヘッダー書き込み、あればFalse
-        )
+        with path.open("w", newline="", encoding="utf-8-sig") as f:
+            writer = csv.DictWriter(f, fieldnames=data.keys())
+            if is_new_file:
+                writer.writeheader()  # 初回のみヘッダー書き込み
+            writer.writerow(data)  # dict のデータを1行追加
         if is_new_file:
             logger.warning(f"新しいCSVファイルを作成しました: {path}")
         else:
@@ -59,6 +59,33 @@ def append_csv(path: Path, df: pd.DataFrame):
     except Exception:
         logger.exception("CSVファイルへの書き込み中にエラーが発生しました。")
         
+
+
+def to_spreadsheet(new_data: dict, spreadsheet_name: str) -> None:
+    SCOPES = ["https://www.googleapis.com/auth/spreadsheets","https://www.googleapis.com/auth/drive"]
+    if spreadsheet_name:
+        gc = gspread.oauth(scopes=SCOPES, credentials_filename="credentials.json")
+        try:
+            # スプレッドシートを開く（存在チェック）
+            sh = gc.open(spreadsheet_name)
+            worksheet = sh.sheet1
+
+            # 行数をチェック（新規か追記か判定）
+            if not worksheet.get_all_records():
+                # 新規作成時: ヘッダーを追加してからデータを挿入
+                worksheet.update([list(new_data.keys())] + [list(new_data.values())])
+                print(f"新規作成: スプレッドシートにヘッダーとデータを追加しました: {spreadsheet_name}")
+            else:
+                # 追記時: 一番下に追加（効率的）
+                worksheet.append_row(list(new_data.values()))
+                print("追記: スプレッドシートに新しい行を追加しました")
+
+        except gspread.exceptions.SpreadsheetNotFound:
+            # スプレッドシートが存在しない場合、新規作成
+            sh = gc.create("chatlog_record")
+            worksheet = sh.sheet1
+            worksheet.update([list(new_data.keys())] + [list(new_data.values())])
+            print(f"新規スプレッドシートを作成し、データを追加しました: {spreadsheet_name}")
 
 
 def main():
@@ -81,19 +108,19 @@ def main():
         # AIオブジェクト作成
         ai_instance: ConversationalAi = create_ai_client(LLM_CONFIG)
 
-        # AIで要約取得        
+        # AIで要約取得
         llm_outputs, llm_stats = ai_instance.get_summary()
 
         # はてなブログへ投稿 投稿結果を辞書型で返却
         blogpost_result = hatenablog_poster.blog_post(
-                            **llm_outputs,
-                            preset_categories=PRESET_CATEGORIES,
-                            hatena_secret_keys=HATENA_SECRET_KEYS, 
-                            author=None,  # str | None   Noneの場合自分のはてなID
-                            updated=None,  # datetime | None  公開時刻設定。Noneの場合5分後に公開
-                            is_draft=DEBUG,  # デバッグ時は下書き                   
-                        )
-        
+            **llm_outputs,
+            preset_categories=PRESET_CATEGORIES,
+            hatena_secret_keys=HATENA_SECRET_KEYS,
+            author=None,  # str | None   Noneの場合自分のはてなID
+            updated=None,  # datetime | None  公開時刻設定。Noneの場合5分後に公開
+            is_draft=DEBUG,  # デバッグ時は下書き
+        )
+
         url = blogpost_result.get("link_alternate", "")
         url_edit = blogpost_result.get("link_edit_user", "")
         title = blogpost_result.get("title", "")
@@ -112,7 +139,8 @@ def main():
         if blogpost_result["status_code"] == 201:
             line_text = "投稿完了です。今日も長い時間お疲れさまでした！\n"
             line_text = (
-                line_text + f"タイトル：{title}\n確認: {url}\n編集: {url_edit}\n下書きモード: {blogpost_result.get('is_draft')}"
+                line_text
+                + f"タイトル：{title}\n確認: {url}\n編集: {url_edit}\n下書きモード: {blogpost_result.get('is_draft')}"
             )
         else:
             line_text = "要約の保存完了。ブログ投稿は行われませんでした。今日も長い時間お疲れ様でした。\n"
@@ -136,33 +164,31 @@ def main():
 
         ai_names = jl.ai_names_from_paths(input_paths)
         conversation_titles = " ".join(jl.get_conversation_titles(input_paths, ai_names))
-        df = pd.DataFrame(
-            {
-                "timestamp": datetime.now().isoformat(),
-                "conversation_title": conversation_titles,
-                "AI_name": " ".join(ai_names),
-                "entry_URL": url,
-                "is_draft": blogpost_result.get("is_draft"),
-                "entry_title": title,
-                "entry_content": content[:30],
-                "categories": ",".join(categories),
-                "prompt": LLM_CONFIG.prompt[:20],
-                "model": LLM_CONFIG.model,
-                "temperature": LLM_CONFIG.temperature,
-                "input_letter_count": llm_stats.input_letter_count,
-                "output_letter_count": llm_stats.output_letter_count,
-                "input_tokens": llm_stats.input_tokens,
-                "input_fee": llm_stats.input_fee,
-                "thoughts_tokens": llm_stats.thoughts_tokens,
-                "thoughts_fee": llm_stats.thoughts_fee,
-                "output_tokens": llm_stats.output_tokens,
-                "output_fee": llm_stats.output_fee,
-                "total_fee (USD)": llm_stats.total_fee,
-                "total_fee (JPY)": total_JPY,
-                "api_key": "..." + LLM_CONFIG.api_key[-5:],
-            },
-            index=["vals"],
-        )
+
+        csv_data = {
+            "timestamp": datetime.now().isoformat(),
+            "conversation_title": conversation_titles,
+            "AI_name": " ".join(ai_names),
+            "entry_URL": url,
+            "is_draft": blogpost_result.get("is_draft"),
+            "entry_title": title,
+            "entry_content": content[:30],
+            "categories": ",".join(categories),
+            "prompt": LLM_CONFIG.prompt[:20],
+            "model": LLM_CONFIG.model,
+            "temperature": LLM_CONFIG.temperature,
+            "input_letter_count": llm_stats.input_letter_count,
+            "output_letter_count": llm_stats.output_letter_count,
+            "input_tokens": llm_stats.input_tokens,
+            "input_fee": llm_stats.input_fee,
+            "thoughts_tokens": llm_stats.thoughts_tokens,
+            "thoughts_fee": llm_stats.thoughts_fee,
+            "output_tokens": llm_stats.output_tokens,
+            "output_fee": llm_stats.output_fee,
+            "total_fee (USD)": llm_stats.total_fee,
+            "total_fee (JPY)": total_JPY,
+            "api_key": "..." + LLM_CONFIG.api_key[-5:],
+        }
 
         summary_file_name = datetime.now().strftime("%y%m%d") + "-" + title
 
@@ -172,9 +198,15 @@ def main():
         summary_dir = csv_dir / "summary"
         summary_dir.mkdir(exist_ok=True)
         summary_path = summary_dir / (f"{summary_file_name.replace('/', ', ')}.txt")
-        # 出力
-        append_csv(csv_path, df)
+        # ファイル出力
+        append_csv(csv_path, csv_data)
         summary_path.write_text(content, encoding="utf-8")
+
+        # Googleスプレッドシートへ出力
+        SPREADSHEET_NAME = config["google_sheets"].get("spreadsheet_id", "chatlog_record").strip()
+        if Path("credentials.json").exists():
+            to_spreadsheet(csv_data, SPREADSHEET_NAME)
+
         logger.info("処理が正常に終了しました。")
 
         return 0
@@ -182,4 +214,5 @@ def main():
     except Exception:
         logger.error("アプリケーションの実行を中止します。")
         logger.info("詳細: ", exc_info=True)
+        sys.exit(1)
         sys.exit(1)

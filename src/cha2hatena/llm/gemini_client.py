@@ -48,7 +48,7 @@ class GeminiClient(ConversationalAi):
             response.usage_metadata.candidates_token_count,
             len(self.prompt),
             len(response.text),
-            self.model
+            self.model,
         )
 
         return data, stats

@@ -60,7 +60,7 @@ class DeepseekClient(ConversationalAi):
             response.usage.completion_tokens,
             len(self.prompt),
             len(generated_text),
-            self.model
+            self.model,
         )
 
         return data, stats
