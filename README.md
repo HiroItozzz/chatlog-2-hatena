@@ -121,16 +121,16 @@ python -m cha2hatena path/to/conversation.json
 ## 🔧 開発予定・課題
 
 - [ ] LINE通知メッセージ内容強化 - アップロードするとAI生成による好きなタイプの労いの言葉が返ってくるように
-- [ ] GoogleSheets連携 - csv自動追記でどこでもログ確認
 
 ### ✅ 実装済み
-
+- GoogleSheets連携: ルートディレクトリに`credentials.json`を配置することでGoogle Sheetsに記録可能
+- .txtファイル入力対応
 - Deepseekによる要約に対応
 - パッケージ化（`src/cha2hatena/`構成）
-- 複数ファイル入力対応 - 複数のスレッドのログもまとめてGeminiへ入力
-- 投稿完了通知機能 - LINEとの連携
-- はてなブログ投稿: ブログ記事として投稿
-- コスト分析: 入出力トークン使用量と料金記録（JPY換算） ※基本はGemini-2.5-pro無料枠利用
+- 複数ファイル入力対応
+- 投稿完了LINE通知機能
+- はてなブログ投稿
+- コスト分析: 入出力トークン使用量と料金記録（JPY換算）
 - AI要約: Google Gemini APIで対話内容の要約を出力
 - 対話型ログ解析: Claude ExporterでエクスポートしたJSONファイルをAI用に処理
 
@@ -173,3 +173,6 @@ MIT LICENSE
 - https://developers.line.biz/ja/reference/messaging-api/#send-broadcast-message
 - https://requests-oauthlib.readthedocs.io/en/latest/oauth1_workflow.html
 - https://qiita.com/jksoft/items/4d57a9282a56c38d0a9c
+- https://api-docs.deepseek.com/
+- https://developers.google.com/workspace/sheets/api/quickstart/python?hl=ja
+- https://docs.gspread.org/en/latest/#

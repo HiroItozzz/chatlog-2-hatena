@@ -26,5 +26,8 @@ paths:
   input_dir: "sample"
   output_dir: "outputs"
 
+google_sheets:
+  spreadsheet_name: record
+
 other:
   debug: f

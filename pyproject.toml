@@ -25,8 +25,8 @@ dependencies = [
     "yfinance",
     "pydantic",
     "python-dotenv",
-    "pandas",
-    "Openai"
+    "Openai",
+    "gspread"
 ]
 
 [project.urls]

@@ -107,7 +107,7 @@ def json_loader(paths: list[Path,]) -> str:
 
             logs.append(f"{'=' * 20} {idx}個目の会話 {'=' * 20}\n\n")
             conversation = "\n".join(logs[::-1])  # 順番を戻す
-                
+
             logger.warning(f"{len(logs) - 1}件の発言を取得: {path.name}")
             print(f"{'=' * 25}最初のメッセージ{'=' * 25}\n{logs[-2][:100]}")
             print(f"{'=' * 25}最後のメッセージ{'=' * 25}\n{logs[0][:100]}")
@@ -122,7 +122,6 @@ def json_loader(paths: list[Path,]) -> str:
 
         conversations.append(conversation)
         ai_names.append(ai_name)
-
 
     logger.warning(f"☑ {len(paths)}件のjsonファイルをテキストに変換しました。\n")
 

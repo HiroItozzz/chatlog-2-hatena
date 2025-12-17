@@ -61,7 +61,7 @@ def config_setup() -> tuple[dict, dict]:
         model = config["ai"]["model"]
     except KeyError:
         raise ValueError("ai.modelが設定されていません。config.yamlで設定してください。")
-    
+
     if model.startswith("deepseek"):
         api_key = os.getenv("DEEPSEEK_API_KEY", "")
     elif model.startswith("gemini"):
@@ -123,12 +123,12 @@ def initialization(logger: logging.Logger) -> tuple:
     config, secret_keys = config_setup()
 
     llm_config = LlmConfig(
-    prompt=config["ai"]["prompt"],
-    model=config["ai"]["model"],
-    temperature=config["ai"]["temperature"],
-    api_key=secret_keys.pop("API_KEY"),
-    conversation=""
-)
+        prompt=config["ai"]["prompt"],
+        model=config["ai"]["model"],
+        temperature=config["ai"]["temperature"],
+        api_key=secret_keys.pop("API_KEY"),
+        conversation="",
+    )
 
     # DEBUGモード・ログレベル判定
     DEBUG_CONFIG = config.get("other", {}).get("debug").lower() in ("true", "1", "t")
