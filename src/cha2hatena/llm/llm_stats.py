@@ -24,21 +24,25 @@ class TokenStats:
         self._input_fee = None
         self._thoughts_fee = None
         self._output_fee = None
+        
     @property
     def input_fee(self) -> float:
         if self._input_fee is None:
             self._input_fee = LlmFee(self.model_name).calculate(self.input_tokens, "input")
         return self._input_fee
+    
     @property
     def thoughts_fee(self) -> float:
         if self._thoughts_fee is None:
             self._thoughts_fee = LlmFee(self.model_name).calculate(self.thoughts_tokens, "thoughts")
         return self._thoughts_fee
+    
     @property
     def output_fee(self) -> float:
         if self._output_fee is None:
             self._output_fee = LlmFee(self.model_name).calculate(self.output_tokens, "output")
         return self._output_fee
+    
     @property
     def total_fee(self) -> float:
         return self.input_fee + self.thoughts_fee + self.output_fee

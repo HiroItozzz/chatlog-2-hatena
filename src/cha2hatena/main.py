@@ -7,9 +7,8 @@ from pathlib import Path
 import gspread
 import yfinance as yf
 
-from . import hatenablog_poster
+from . import hatenablog_poster, line_message
 from . import json_loader as jl
-from . import line_message
 from .llm import deepseek_client, gemini_client
 from .llm.conversational_ai import ConversationalAi, LlmConfig
 from .setup import initialization
@@ -45,17 +44,20 @@ def create_ai_client(config: LlmConfig):
 
 def append_csv(path: Path, data: dict):
     """pathがなければ作成し、CSVに1行追記"""
+    # ファイルを開く前に状態を確定させる（正しい）
     is_new_file = not path.exists() or path.stat().st_size == 0
+    
     try:
-        with path.open("w", newline="", encoding="utf-8-sig") as f:
+        with path.open("a", newline="", encoding="utf-8-sig") as f:
             writer = csv.DictWriter(f, fieldnames=data.keys())
             if is_new_file:
-                writer.writeheader()  # 初回のみヘッダー書き込み
-            writer.writerow(data)  # dict のデータを1行追加
+                writer.writeheader()  # 新規または空の時のみ列名を追加
+            writer.writerow(data)
+            
         if is_new_file:
             logger.warning(f"新しいCSVファイルを作成しました: {path}")
         else:
-            logger.warning(f"CSVにデータを追記しました: {path.name}")
+            logger.warning(f"CSVにデータを追記しました: {path.name}")    
     except Exception:
         logger.exception("CSVファイルへの書き込み中にエラーが発生しました。")
         
@@ -69,20 +71,18 @@ def to_spreadsheet(new_data: dict, spreadsheet_name: str) -> None:
             # スプレッドシートを開く（存在チェック）
             sh = gc.open(spreadsheet_name)
             worksheet = sh.sheet1
-
-            # 行数をチェック（新規か追記か判定）
-            if not worksheet.get_all_records():
-                # 新規作成時: ヘッダーを追加してからデータを挿入
+            
+            existing_data = worksheet.get_all_values()
+            if not existing_data:
                 worksheet.update([list(new_data.keys())] + [list(new_data.values())])
                 print(f"新規作成: スプレッドシートにヘッダーとデータを追加しました: {spreadsheet_name}")
             else:
-                # 追記時: 一番下に追加（効率的）
                 worksheet.append_row(list(new_data.values()))
                 print("追記: スプレッドシートに新しい行を追加しました")
 
         except gspread.exceptions.SpreadsheetNotFound:
             # スプレッドシートが存在しない場合、新規作成
-            sh = gc.create("chatlog_record")
+            sh = gc.create("record")
             worksheet = sh.sheet1
             worksheet.update([list(new_data.keys())] + [list(new_data.values())])
             print(f"新規スプレッドシートを作成し、データを追加しました: {spreadsheet_name}")
@@ -203,7 +203,7 @@ def main():
         summary_path.write_text(content, encoding="utf-8")
 
         # Googleスプレッドシートへ出力
-        SPREADSHEET_NAME = config["google_sheets"].get("spreadsheet_id", "chatlog_record").strip()
+        SPREADSHEET_NAME = config["google_sheets"].get("spreadsheet_name", "record").strip()
         if Path("credentials.json").exists():
             to_spreadsheet(csv_data, SPREADSHEET_NAME)
 

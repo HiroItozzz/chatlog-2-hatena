@@ -27,7 +27,7 @@ paths:
   output_dir: "outputs"
 
 google_sheets:
-  spreadsheet_name: chatlog_record
+  spreadsheet_name: record
 
 other:
   debug: f
