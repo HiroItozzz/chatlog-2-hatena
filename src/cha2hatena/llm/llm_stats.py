@@ -20,30 +20,29 @@ class TokenStats:
         self.input_letter_count = input_letter_count
         self.output_letter_count = output_letter_count
         self.model_name = model
-
         # 遅延計算用のキャッシュ
         self._input_fee = None
         self._thoughts_fee = None
         self._output_fee = None
-
+        
     @property
     def input_fee(self) -> float:
         if self._input_fee is None:
             self._input_fee = LlmFee(self.model_name).calculate(self.input_tokens, "input")
         return self._input_fee
-
+    
     @property
     def thoughts_fee(self) -> float:
         if self._thoughts_fee is None:
             self._thoughts_fee = LlmFee(self.model_name).calculate(self.thoughts_tokens, "thoughts")
         return self._thoughts_fee
-
+    
     @property
     def output_fee(self) -> float:
         if self._output_fee is None:
             self._output_fee = LlmFee(self.model_name).calculate(self.output_tokens, "output")
         return self._output_fee
-
+    
     @property
     def total_fee(self) -> float:
         return self.input_fee + self.thoughts_fee + self.output_fee
@@ -64,7 +63,6 @@ class BaseLlmFee(ABC):
     @abstractmethod
     def calculate(self, tokens: int, token_type: str) -> float:
         pass
-
 
 class LlmFee(BaseLlmFee):
     """2025/12/09現在"""

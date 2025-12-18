@@ -61,7 +61,6 @@ def config_setup() -> tuple[dict, dict]:
         model = config["ai"]["model"]
     except KeyError:
         raise ValueError("ai.modelが設定されていません。config.yamlで設定してください。")
-
     if model.startswith("deepseek"):
         api_key = os.getenv("DEEPSEEK_API_KEY", "")
     elif model.startswith("gemini"):
