@@ -123,7 +123,7 @@ python -m cha2hatena path/to/conversation.json
 - [ ] LINE通知メッセージ内容強化 - アップロードするとAI生成による好きなタイプの労いの言葉が返ってくるように
 
 ### ✅ 実装済み
-- GoogleSheets連携: ルートディレクトリに`credentials.json`を配置することでGoogle Sheetsに記録可能
+- GoogleSheets連携: `credentials/credentials.json`を配置することでGoogle Sheetsに記録可能
 - .txtファイル入力対応
 - Deepseekによる要約に対応
 - パッケージ化（`src/cha2hatena/`構成）

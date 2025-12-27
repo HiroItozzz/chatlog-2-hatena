@@ -1,6 +1,10 @@
 credentials/
 credentials.json
 token.json
+<<<<<<< HEAD
+=======
+authorized_user.json
+>>>>>>> main
 
 .venv*
 __pycache__/

@@ -65,8 +65,9 @@ def append_csv(path: Path, data: dict):
 
 def to_spreadsheet(new_data: dict, spreadsheet_name: str) -> None:
     SCOPES = ["https://www.googleapis.com/auth/spreadsheets","https://www.googleapis.com/auth/drive"]
+    CREDENTIALS_DIRECTORY = Path.cwd() / "credentials" / "credentials.json"
     if spreadsheet_name:
-        gc = gspread.oauth(scopes=SCOPES, credentials_filename="credentials.json")
+        gc = gspread.service_account(scopes=SCOPES, filename=CREDENTIALS_DIRECTORY)
         try:
             # スプレッドシートを開く（存在チェック）
             sh = gc.open(spreadsheet_name)
@@ -75,17 +76,17 @@ def to_spreadsheet(new_data: dict, spreadsheet_name: str) -> None:
             existing_data = worksheet.get_all_values()
             if not existing_data:
                 worksheet.update([list(new_data.keys())] + [list(new_data.values())])
-                print(f"新規作成: スプレッドシートにヘッダーとデータを追加しました: {spreadsheet_name}")
+                logger.warning(f"新規作成: スプレッドシートにヘッダーとデータを追加しました: {spreadsheet_name}")
             else:
                 worksheet.append_row(list(new_data.values()))
-                print("追記: スプレッドシートに新しい行を追加しました")
+                logger.warning("追記: スプレッドシートに新しい行を追加しました")
 
         except gspread.exceptions.SpreadsheetNotFound:
             # スプレッドシートが存在しない場合、新規作成
             sh = gc.create("record")
             worksheet = sh.sheet1
             worksheet.update([list(new_data.keys())] + [list(new_data.values())])
-            print(f"新規スプレッドシートを作成し、データを追加しました: {spreadsheet_name}")
+            logger.warning(f"新規スプレッドシートを作成し、データを追加しました: {spreadsheet_name}")
 
 
 def main():
@@ -204,9 +205,11 @@ def main():
 
         # Googleスプレッドシートへ出力
         SPREADSHEET_NAME = config["google_sheets"].get("spreadsheet_name", "record").strip()
-        if Path("credentials.json").exists():
+        try:
             to_spreadsheet(csv_data, SPREADSHEET_NAME)
-
+        except Exception as e:
+            logger.warning("Googleスプレッドシートへの書き込みは行われませんでした")
+            logger.debug(f"詳細: {e}")
         logger.info("処理が正常に終了しました。")
 
         return 0

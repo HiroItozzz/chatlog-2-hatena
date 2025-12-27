@@ -19,7 +19,7 @@ echo 処理中: %*
 .venv\Scripts\python.exe -m cha2hatena %*
 if %errorlevel% equ 0 (
     echo ✓ 処理が完了しました
-    timeout /t 2
+    timeout /t 10
     exit /b 0
 ) else (
     echo ❌ エラーが発生しました
