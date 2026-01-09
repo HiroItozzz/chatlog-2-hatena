@@ -68,14 +68,15 @@ class LlmFee(BaseLlmFee):
     """2025/12/09現在"""
 
     _fees = {
-        "gemini-2.5-flash": {"input": 0.03, "output": 2.5},  # $per 1M tokens
+        "gemini-2.5-flash": {"input": 0.3, "output": 2.5},  # $per 1M tokens
+        "gemini-3-flash-preview": {"input": 0.5, "output": 3.0},
         "gemini-2.5-pro": {
             "under_0.2M": {"input": 1.25, "output": 10.00},
             "over_0.2M": {"input": 2.5, "output": 15.0},
         },
         "deepseek": {"input(cache_hit)": 0.028, "input(cache_miss)": 0.28, "output": 0.42},
     }
-    _model_list = ["gemini-2.5-flash", "gemini-2.5-pro", "deepseek-chat", "deepseek-reasoner"]
+    _model_list = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-flash-preview", "deepseek-chat", "deepseek-reasoner"]
 
     @property
     def fees(self):
@@ -85,22 +86,28 @@ class LlmFee(BaseLlmFee):
     def model_list(self):
         return self._model_list
 
-    def calculate(self, tokens, token_type: str) -> float:
-        model_name = self.model
+    def calculate(self, tokens: int | None, token_type: str) -> float:
         token_type = "output" if token_type == "thoughts" else token_type
+        tokens = 0 if not tokens else tokens
         if self.model not in self.model_list:
             logger.warning("料金表に登録されていないモデルです")
-            logger.warning("'gemini-2.5-proの料金で試算します")
-            model_name = "gemini-2.5-pro"
-        if model_name.startswith("deepseek"):
+            logger.warning("gemini-2.5-proの料金で試算します")
+            self.model = "gemini-2.5-pro"
+
+        if self.model.startswith("deepseek"):
             base_fee = self.fees["deepseek"]
-            token_type = "output" if token_type == "thoughts" else token_type
+
             if token_type == "output":
                 dollar_per_1M_tokens = base_fee["output"]
             else:
                 dollar_per_1M_tokens = base_fee["input(cache_miss)"]
-        elif model_name == "gemini-2.5-flash":
+
+        elif self.model == "gemini-2.5-flash":
             dollar_per_1M_tokens = self.fees[self.model][token_type]
+
+        elif self.model == "gemini-3-flash-preview":
+            dollar_per_1M_tokens = self.fees[self.model][token_type]
+
         else:
             base_fee = self.fees["gemini-2.5-pro"]
             if tokens <= 200000:
@@ -109,7 +116,6 @@ class LlmFee(BaseLlmFee):
                 dollar_per_1M_tokens = base_fee["over_0.2M"][token_type]
 
         return dollar_per_1M_tokens * tokens / 1000000
-
 
 """
 class DeepseekFee(LlmFee):
