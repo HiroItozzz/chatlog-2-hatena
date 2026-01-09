@@ -9,10 +9,13 @@ logger = logging.getLogger(__name__)
 ### ユーティリティ関数
 def ai_names_from_paths(paths: list[Path]) -> list:
     """AIの名前のリストを取得"""
-    AI_LIST = ["Claude", "Gemini", "ChatGPT"]
+    AI_LIST = ["Claude", "Gemini", "ChatGPT", "Deepseek"]
     ai_names = []
     for path in paths:
-        ai_name = next((ai for ai in AI_LIST if path.stem.startswith(ai + "-")), "Unknown_AI")
+        ai_name = next(
+            (ai for ai in AI_LIST if path.stem.lower().startswith(ai.lower() + "-")),
+            "Unknown_AI",
+        )
         ai_names.append(ai_name)
     return ai_names
 
@@ -48,15 +51,28 @@ def convert_to_str(messages: dict, ai_name: str) -> tuple[list, datetime | None]
     logger.warning(f"{len(messages)}件のメッセージを処理中...")
 
     # 初期化
-    dt_format = "%Y/%m/%d %H:%M:%S"
-    latest = messages[-1].get("time", "")
-    latest_dt = datetime.strptime(latest, dt_format) if latest else None
+    latest_message = messages[-1]
+    if "time" in latest_message:
+        dt_format = "%Y/%m/%d %H:%M:%S"
+        latest_dt_raw = latest_message.get("time")
+    elif "timestamp" in latest_message:  # for Claude-Extractor(`claude-start`)
+        dt_format = "%Y-%m-%dT%H:%M:%S.%fZ"  # ISOフォーマット
+        latest_dt_raw = latest_message.get("timestamp")
+    else:
+        latest_dt_raw = None
+    latest_dt = datetime.strptime(latest_dt_raw, dt_format) if latest_dt_raw else None
     logs = []
     previous_dt = latest_dt
 
     # 逆順
     for message in reversed(messages):
-        timestamp = message.get("time", None)
+        # 時刻を取得（あれば）
+        if "time" in message:
+            timestamp = message.get("time")
+        elif "timestamp" in message:  # for Claude-Extractor(`claude-start`)
+            timestamp = message.get("timestamp")
+        else:
+            timestamp = None
 
         # 当日のメッセージではないかつ3時間以上時間が空いた場合ループを抜ける
         if timestamp:
@@ -67,7 +83,14 @@ def convert_to_str(messages: dict, ai_name: str) -> tuple[list, datetime | None]
 
         agent = get_agent(message, ai_name)
 
-        text = message.get("say", "").replace("\n\n", "\n")
+        # メッセージを取得
+        if "say" in message:
+            text = message.get("say", "").replace("\n\n", "\n")
+        elif "content" in message:  # for Claude-Extractor(`claude-start`)
+            text = message.get("content", "").replace("\n\n", "\n")
+        else:
+            raise KeyError
+
         logs.append(f"date: {timestamp} \nagent: {agent}\n[message]\n{text} \n\n {'-' * 50}\n")
 
         if timestamp:
@@ -112,7 +135,7 @@ def json_loader(paths: list[Path,]) -> str:
             print(f"{'=' * 25}最後のメッセージ{'=' * 25}\n{logs[0][:100]}")
             print("=" * 60)
 
-        elif path.suffix == ".txt":
+        elif path.suffix in [".txt", ".md"]:
             conversation = f"{'=' * 20} {idx}個目の会話 {'=' * 20}\n\n"
             conversation += path.read_text(encoding="utf-8")
 
