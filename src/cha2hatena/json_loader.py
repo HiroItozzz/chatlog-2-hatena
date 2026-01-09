@@ -35,10 +35,10 @@ def get_conversation_titles(paths: list[Path], ai_names: list) -> list:
 
 def get_agent(message: dict, ai_name: str) -> str:
     """話者判定・Gemini出力の精度向上のため"""
-    if message.get("role") == "Prompt":
-        agent = "You"
-    elif message.get("role") == "Response":
-        agent = ai_name
+    if message.get("role") in ["Prompt", "user"]:
+        agent = "👤 User"
+    elif message.get("role") in ["Response", "assistant"]:
+        agent = "🤖 " + ai_name
     else:
         agent = message.get("role", "")
         logger.debug(f"{'=' * 25}Detected agent other than You and {ai_name}: {agent} {'=' * 25}")
@@ -55,7 +55,7 @@ def convert_to_str(messages: dict, ai_name: str) -> tuple[list, datetime | None]
     if "time" in latest_message:
         dt_format = "%Y/%m/%d %H:%M:%S"
         latest_dt_raw = latest_message.get("time")
-    elif "timestamp" in latest_message:  # for Claude-Extractor(`claude-start`)
+    elif "timestamp" in latest_message:  # for Claude-Conversation-Extractor
         dt_format = "%Y-%m-%dT%H:%M:%S.%fZ"  # ISOフォーマット
         latest_dt_raw = latest_message.get("timestamp")
     else:
@@ -69,7 +69,7 @@ def convert_to_str(messages: dict, ai_name: str) -> tuple[list, datetime | None]
         # 時刻を取得（あれば）
         if "time" in message:
             timestamp = message.get("time")
-        elif "timestamp" in message:  # for Claude-Extractor(`claude-start`)
+        elif "timestamp" in message:  # for Claude-Conversation-Extractor
             timestamp = message.get("timestamp")
         else:
             timestamp = None
@@ -86,12 +86,12 @@ def convert_to_str(messages: dict, ai_name: str) -> tuple[list, datetime | None]
         # メッセージを取得
         if "say" in message:
             text = message.get("say", "").replace("\n\n", "\n")
-        elif "content" in message:  # for Claude-Extractor(`claude-start`)
+        elif "content" in message:  # for Claude-Conversation-Extractor
             text = message.get("content", "").replace("\n\n", "\n")
         else:
             raise KeyError
 
-        logs.append(f"date: {timestamp} \nagent: {agent}\n[message]\n{text} \n\n {'-' * 50}\n")
+        logs.append(f"## agent: {agent} | date: {timestamp}  \nmessage:  \n{text}\n\n{'-' * 3}\n\n")
 
         if timestamp:
             previous_dt = msg_dt
@@ -128,7 +128,7 @@ def json_loader(paths: list[Path,]) -> str:
             if timestamp is None:
                 print(f"{path.name}の会話履歴に時刻情報がありません。すべての会話を取得しました。")
 
-            logs.append(f"{'=' * 20} {idx}個目の会話 {'=' * 20}\n\n")
+            logs.append(f"# {idx}個目の会話\n\n")
             conversation = "\n".join(logs[::-1])  # 順番を戻す
             logger.warning(f"{len(logs) - 1}件の発言を取得: {path.name}")
             print(f"{'=' * 25}最初のメッセージ{'=' * 25}\n{logs[-2][:100]}")
