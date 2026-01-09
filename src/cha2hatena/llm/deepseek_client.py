@@ -31,7 +31,7 @@ class DeepseekClient(ConversationalAi):
                 break
             except Exception as e:
                 # https://api-docs.deepseek.com/quick_start/error_codes
-                if any(code in str(e) for code in [500, 502, 503]):
+                if any(code in str(e) for code in ["500", "502", "503"]):
                     super().handle_server_error(i, max_retries)
                 elif "429" in str(e):
                     logger.error("APIレート制限。しばらく経ってから再実行してください。")
