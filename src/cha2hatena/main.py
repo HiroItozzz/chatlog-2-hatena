@@ -113,7 +113,7 @@ def main():
         llm_outputs, llm_stats = ai_instance.get_summary()
 
         # はてなブログへ投稿 投稿結果を辞書型で返却
-        blogpost_result = HatenaBlogPoster.blog_post(
+        poster = HatenaBlogPoster(
             **llm_outputs,
             preset_categories=PRESET_CATEGORIES,
             hatena_secret_keys=HATENA_SECRET_KEYS,
@@ -121,6 +121,7 @@ def main():
             updated=None,  # datetime | None  公開時刻設定。Noneの場合5分後に公開
             is_draft=DEBUG,  # デバッグ時は下書き
         )
+        blogpost_result = poster.blog_post()
 
         url = blogpost_result.get("link_alternate", "")
         url_edit = blogpost_result.get("link_edit_user", "")
@@ -204,12 +205,13 @@ def main():
         summary_path.write_text(content, encoding="utf-8")
 
         # Googleスプレッドシートへ出力
-        SPREADSHEET_NAME = config["google_sheets"].get("spreadsheet_name", "record").strip()
-        try:
-            to_spreadsheet(csv_data, SPREADSHEET_NAME)
-        except Exception as e:
-            logger.warning("Googleスプレッドシートへの書き込みは行われませんでした")
-            logger.debug(f"詳細: {e}")
+        if not DEBUG:
+            SPREADSHEET_NAME = config["google_sheets"].get("spreadsheet_name", "record").strip()
+            try:
+                to_spreadsheet(csv_data, SPREADSHEET_NAME)
+            except Exception as e:
+                logger.warning("Googleスプレッドシートへの書き込みは行われませんでした")
+                logger.debug(f"詳細: {e}")
         logger.info("処理が正常に終了しました。")
 
         return 0

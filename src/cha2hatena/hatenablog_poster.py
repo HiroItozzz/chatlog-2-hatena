@@ -45,8 +45,8 @@ class HatenaBlogPoster:
     def blog_post(
         self,
     ) -> dict:
-        xml_entry = self.xml_unparser(self)
-        res = self.hatena_oauth(self, xml_entry)
+        xml_entry = self.xml_unparser()
+        res = self.hatena_oauth(xml_entry)
 
         return self.parse_response(res)
     
