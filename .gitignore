@@ -1,7 +1,14 @@
 credentials/
 credentials.json
 token.json
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
 authorized_user.json
+>>>>>>> main
+=======
+authorized_user.json
+>>>>>>> main
 
 .venv*
 __pycache__/
