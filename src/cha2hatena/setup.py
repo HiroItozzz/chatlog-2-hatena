@@ -125,7 +125,7 @@ def initialization(logger: logging.Logger) -> tuple:
         prompt=config["ai"]["prompt"],
         model=config["ai"]["model"],
         temperature=config["ai"]["temperature"],
-        api_key=secret_keys.pop("API_KEY"),
+        api_key=secret_keys.get("API_KEY"),
         conversation="",
     )
 

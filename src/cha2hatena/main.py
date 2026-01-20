@@ -1,3 +1,4 @@
+import asyncio
 import csv
 import logging
 import sys
@@ -5,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 import gspread
+import httpx
 import yfinance as yf
 
 from . import json_loader as jl
@@ -13,6 +15,7 @@ from .hatenablog_poster import HatenaBlogPoster
 from .llm import deepseek_client, gemini_client
 from .llm.conversational_ai import ConversationalAi, LlmConfig
 from .setup import initialization
+from .blog_schema import HatenaSecretKeys
 
 logger = logging.getLogger(__name__)
 parent_logger = logging.getLogger("cha2hatena")
@@ -25,8 +28,8 @@ except Exception as e:
 
 
 PRESET_CATEGORIES = config["blog"]["preset_category"]
-LINE_ACCESS_TOKEN = SECRET_KEYS.pop("LINE_CHANNEL_ACCESS_TOKEN")
-HATENA_SECRET_KEYS = SECRET_KEYS
+LINE_ACCESS_TOKEN = SECRET_KEYS.get("LINE_CHANNEL_ACCESS_TOKEN")
+HATENA_SECRET_KEYS = HatenaSecretKeys.model_validate(SECRET_KEYS)
 
 
 ######################################################
@@ -43,7 +46,16 @@ def create_ai_client(config: LlmConfig):
     return client
 
 
-def append_csv(path: Path, data: dict):
+async def process_blogpost(**kwargs) -> list[dict]:
+    """複数のブログへ投稿 投稿結果を辞書のリストで返却"""
+    async with httpx.AsyncClient() as httpx_client:
+        hatena_client = HatenaBlogPoster(**kwargs)
+        tasks = [hatena_client.blog_post(httpx_client)]
+        results = await asyncio.gather(*tasks)
+    return results
+
+
+def append_csv(path: Path, data: dict) -> None:
     """pathがなければ作成し、CSVに1行追記"""
     # ファイルを開く前に状態を確定させる（正しい）
     is_new_file = not path.exists() or path.stat().st_size == 0
@@ -112,22 +124,22 @@ def main():
         # AIで要約取得
         llm_outputs, llm_stats = ai_instance.get_summary()
 
-        # はてなブログへ投稿 投稿結果を辞書型で返却
-        poster = HatenaBlogPoster(
+        blog_post_kwargs = {
             **llm_outputs,
-            preset_categories=PRESET_CATEGORIES,
-            hatena_secret_keys=HATENA_SECRET_KEYS,
-            author=None,  # str | None   Noneの場合自分のはてなID
-            updated=None,  # datetime | None  公開時刻設定。Noneの場合5分後に公開
-            is_draft=DEBUG,  # デバッグ時は下書き
-        )
-        blogpost_result = poster.blog_post()
+            "preset_categories": PRESET_CATEGORIES,
+            "hatena_secret_keys": HATENA_SECRET_KEYS,
+            "author": None,  # str | None   Noneの場合自分のはてなID
+            "updated": None,  # datetime | None  公開時刻設定。Noneの場合5分後に公開
+            "is_draft": DEBUG,  # デバッグ時は下書き
+        }
+        blogpost_results = asyncio.run(process_blogpost(**blog_post_kwargs))
+        hatena_result = blogpost_results[0]
 
-        url = blogpost_result.get("link_alternate", "")
-        url_edit = blogpost_result.get("link_edit_user", "")
-        title = blogpost_result.get("title", "")
-        content = blogpost_result.get("content", "")
-        categories = blogpost_result.get("categories", [])
+        url = hatena_result.get("link_alternate", "")
+        url_edit = hatena_result.get("link_edit_user", "")
+        title = hatena_result.get("title", "")
+        content = hatena_result.get("content", "")
+        categories = hatena_result.get("categories", [])
 
         logger.warning("はてなブログへの投稿に成功しました。")
         logger.warning(f"URL: {url_edit}")
@@ -138,11 +150,11 @@ def main():
         print("-" * 50)
 
         # LINE通知
-        if blogpost_result["status_code"] == 201:
+        if hatena_result["status_code"] == 201:
             line_text = "投稿完了です。今日も長い時間お疲れさまでした！\n"
             line_text = (
                 line_text
-                + f"タイトル：{title}\n確認: {url}\n編集: {url_edit}\n下書きモード: {blogpost_result.get('is_draft')}"
+                + f"タイトル：{title}\n確認: {url}\n編集: {url_edit}\n下書きモード: {hatena_result.get('is_draft')}"
             )
         else:
             line_text = "要約の保存完了。ブログ投稿は行われませんでした。今日も長い時間お疲れ様でした。\n"
@@ -172,7 +184,7 @@ def main():
             "conversation_title": conversation_titles,
             "AI_name": " ".join(ai_names),
             "entry_URL": url,
-            "is_draft": blogpost_result.get("is_draft"),
+            "is_draft": hatena_result.get("is_draft"),
             "entry_title": title,
             "entry_content": content[:30],
             "categories": ",".join(categories),

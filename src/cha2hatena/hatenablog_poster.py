@@ -3,8 +3,11 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from requests import Response
-from requests_oauthlib import OAuth1Session
+import httpx
+from authlib.integrations.httpx_client import OAuth1Auth
+from pydantic import BaseModel, Field
+
+from .blog_schema import AbstractBlogPoster, HatenaSecretKeys
 
 logger = logging.getLogger(__name__)
 
@@ -21,35 +24,22 @@ def safe_find_attr(root: ET.Element, key: str, attr: str, ns: dict | None = None
     return elem.get(attr) if elem is not None else default
 
 
-class HatenaBlogPoster:
-    def __init__(
-        self,
-        title: str,
-        content: str,
-        categories: list,
-        hatena_secret_keys: dict,
-        preset_categories: list = [],
-        author: str | None = None,
-        updated: datetime | None = None,
-        is_draft: bool = False,
-    ):
-        self.title = title
-        self.content = content
-        self.categories = categories
-        self.hatena_secret_keys = hatena_secret_keys
-        self.preset_categories = preset_categories
-        self.author = author
-        self.updated = updated
-        self.is_draft = is_draft
-    
-    def blog_post(
-        self,
-    ) -> dict:
+class HatenaBlogPoster(BaseModel, AbstractBlogPoster):
+    title: str
+    content: str
+    categories: list
+    preset_categories: list = []
+    secret_keys: HatenaSecretKeys = Field(alias="hatena_secret_keys", strict=True)
+    author: str | None = None
+    updated: datetime | None = None
+    is_draft: bool = False
+
+    async def blog_post(self, httpx_client: httpx.AsyncClient) -> dict:
         xml_entry = self.xml_unparser()
-        res = self.hatena_oauth(xml_entry)
+        res = await self.hatena_oauth(xml_entry, httpx_client)
 
         return self.parse_response(res)
-    
+
     def xml_unparser(self) -> str:
         """はてなブログ投稿リクエストの形式へ変換"""
 
@@ -90,12 +80,17 @@ class HatenaBlogPoster:
         logger.debug(f"{'=' * 25}☑ xml_unparserの処理終了{'=' * 25}")
         return ET.tostring(ROOT, encoding="unicode")
 
-    def hatena_oauth(self, xml_str: str) -> dict:
+    async def hatena_oauth(self, xml_str: str, httpx_client: httpx.AsyncClient) -> dict:
         """はてなブログへ投稿"""
 
-        URL = self.hatena_secret_keys.pop("hatena_entry_url")
-        oauth = OAuth1Session(**self.hatena_secret_keys)
-        response = oauth.post(URL, data=xml_str, headers={"Content-Type": "application/xml; charset=utf-8"})
+        URL = self.secret_keys.model_dump().get("hatena_entry_url")
+        auth = OAuth1Auth(
+            **self.secret_keys.get_auth_params(),
+            force_include_body=True,  # ← これを追加
+        )
+        response = await httpx_client.post(
+            URL, auth=auth, content=xml_str, headers={"Content-Type": "application/xml; charset=utf-8"}
+        )
 
         logger.debug(f"Status: {response.status_code}")
         if response.status_code == 201:
@@ -105,7 +100,7 @@ class HatenaBlogPoster:
         return response
 
     @staticmethod
-    def parse_response(response: Response) -> dict[str, Any]:
+    def parse_response(response: httpx.Response) -> dict[str, Any]:
         """投稿結果を取得"""
 
         # 名前空間
@@ -136,4 +131,3 @@ class HatenaBlogPoster:
         }
 
         return response_dict
-

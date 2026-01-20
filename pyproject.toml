@@ -18,7 +18,7 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP",
 ]
 dependencies = [
-    "requests",
+    "httpx",
     "requests-oauthlib",
     "google-genai",
     "pyyaml",
@@ -26,7 +26,8 @@ dependencies = [
     "pydantic",
     "python-dotenv",
     "Openai",
-    "gspread"
+    "gspread",
+    "authlib"
 ]
 
 [project.urls]
