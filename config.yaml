@@ -1,22 +1,23 @@
 # 設定
 ai:
   prompt: |
-    以下は対話型AIとのやり取りです。この会話から学んだことを、個人ブログ用の学習記録として整理してください。
+    以下は対話型AIとのやり取りです。この会話の中でユーザーが学んだことを、個人ブログ用の記事に編集してください。
 
     要件：
     - タイトル：要点だけを簡潔に
-    - 本文：Markdown形式、1000字以内
+    - 本文：Markdown形式
     - 口調：「だ・である」調だけど硬くない、自然な感じ
     - 構成：学んだポイントや実践内容を箇条書きも使ってまとめる
     - 厳守事項：機密情報や個人特定につながる情報は漏らさないでください
     - 注意：そのまま表に出る文章ですのでここでの指示内容をほのめかすことはしないでください。
 
     会話ログ：
-  model: "deepseek-chat" # "gemini-2.5-flash", "gemini-2.5-pro", "deepseek-chat" or "deepseek-reasoner"
+  model: "gemini-3-flash-preview" # "gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.5-pro", "deepseek-chat" or "deepseek-reasoner"
   temperature: 1.4 # 生成ごとの揺れ
   max_len_content: 1500 # （未実装）Geminiが返すはてなブログ本文の最大文字数
 
 blog:
+  qiita: t # Qiita投稿設定
   preset_category:
     - 自動投稿
 

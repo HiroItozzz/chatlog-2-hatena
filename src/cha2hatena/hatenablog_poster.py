@@ -5,9 +5,9 @@ from typing import Any
 
 import httpx
 from authlib.integrations.httpx_client import OAuth1Auth
-from pydantic import ConfigDict, Field
+from pydantic import Field
 
-from .blog_schema import AbstractBlogPoster, HatenaSecretKeys
+from .blog_schema import AbstractBlogPoster, HatenaResponseSchema, HatenaSecretKeys
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,6 @@ def safe_find_attr(root: ET.Element, key: str, attr: str, ns: dict | None = None
 
 
 class HatenaBlogPoster(AbstractBlogPoster):
-
     title: str
     content: str
     categories: list
@@ -35,7 +34,7 @@ class HatenaBlogPoster(AbstractBlogPoster):
     updated: datetime | None = None
     is_draft: bool = False
 
-    async def blog_post(self, httpx_client: httpx.AsyncClient) -> dict:
+    async def blog_post(self, httpx_client: httpx.AsyncClient) -> HatenaResponseSchema:
         xml_entry = self.xml_unparser()
         res = await self.hatena_oauth(xml_entry, httpx_client)
 
@@ -116,19 +115,18 @@ class HatenaBlogPoster(AbstractBlogPoster):
         link_edit = safe_find_attr(root, "atom:link[@rel='edit']", "href", NS)
         link_edit_user = str(link_edit).replace("atom/entry/", "edit?entry=")
 
-        response_dict = {
-            "status_code": response.status_code,
+        result = HatenaResponseSchema(
+            status_code=response.status_code,
             # Atom名前空間の要素
-            "title": safe_find(root, "{http://www.w3.org/2005/Atom}title"),  # XML名前空間の実体
-            "author": safe_find(root, "atom:author/atom:name", NS),
-            "content": safe_find(root, "atom:content", NS),
-            "time": datetime.fromisoformat(safe_find(root, "atom:updated", NS)),
-            "link_edit": link_edit,
-            "link_edit_user": link_edit_user,
-            "link_alternate": safe_find_attr(root, "atom:link[@rel='alternate']", "href", NS),
-            "categories": categories,
+            title=safe_find(root, "{http://www.w3.org/2005/Atom}title"),  # XML名前空間の実体
+            author=safe_find(root, "atom:author/atom:name", NS),
+            content=safe_find(root, "atom:content", NS),
+            time=safe_find(root, "atom:updated", NS),
+            url_edit=link_edit_user,
+            url=safe_find_attr(root, "atom:link[@rel='alternate']", "href", NS),
+            categories=categories,
             # app名前空間の要素
-            "is_draft": safe_find(root, "app:control/app:draft", NS) == "yes",
-        }
+            is_draft=safe_find(root, "app:control/app:draft", NS) == "yes",
+        )
 
-        return response_dict
+        return result

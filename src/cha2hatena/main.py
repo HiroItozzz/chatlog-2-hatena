@@ -11,7 +11,7 @@ import yfinance as yf
 
 from . import json_loader as jl
 from . import line_message
-from .blog_schema import BlogClientSchema, HatenaSecretKeys
+from .blog_schema import BlogClientSchema, HatenaResponseSchema, HatenaSecretKeys
 from .hatenablog_poster import HatenaBlogPoster
 from .llm import deepseek_client, gemini_client
 from .llm.conversational_ai import ConversationalAi, LlmConfig
@@ -22,12 +22,12 @@ logger = logging.getLogger(__name__)
 parent_logger = logging.getLogger("cha2hatena")
 
 try:
-    DEBUG, SECRET_KEYS, LLM_CONFIG, config = initialization(parent_logger)
+    DEBUG, SECRET_KEYS, LLM_CONFIG, CONFIG = initialization(parent_logger)
 except Exception as e:
     logger.critical(f"初期設定が正常に行われませんでした: {e}", exc_info=True)
     sys.exit(1)
 
-PRESET_CATEGORIES = config["blog"]["preset_category"]
+PRESET_CATEGORIES = CONFIG["blog"]["preset_category"]
 LINE_ACCESS_TOKEN = SECRET_KEYS.get("line_channel_access_token")
 HATENA_SECRET_KEYS = HatenaSecretKeys.model_validate(SECRET_KEYS)
 QIITA_BEARER_TOKEN = SECRET_KEYS.get("qiita_bearer_token")
@@ -48,15 +48,26 @@ def create_ai_client(config: LlmConfig):
 
 async def process_blogpost(schema: BlogClientSchema) -> list[dict]:
     """複数のブログへ投稿 投稿結果を辞書のリストで返却"""
+    BLOG_CLIENTS = []
+    if schema.hatena_secret_keys:
+        BLOG_CLIENTS.append(("はてな", HatenaBlogPoster))
+    if schema.qiita_bearer_token and (CONFIG.get("blog") or {}).get("qiita"):
+        BLOG_CLIENTS.append(("Qiita", QiitaPoster))
+        # 将来的に追加
+        # if schema.note_access_token:
+        #     BLOG_CLIENTS.append(("note", NotePoster))
+        # if schema.devto_api_key:
+        #     BLOG_CLIENTS.append(("Dev.to", DevtoPoster))
+
+    clients = {name: client_class.model_validate(schema.model_dump()) for name, client_class in BLOG_CLIENTS}
 
     async with httpx.AsyncClient() as httpx_client:
-        BLOG_LIST = {
-            "はてな": HatenaBlogPoster.model_validate(schema.model_dump()),
-            "Qiita": QiitaPoster.model_validate(schema.model_dump()),
-        }
-        tasks = [client.blog_post(httpx_client) for client in BLOG_LIST.values()]
-        results = await asyncio.gather(*tasks)
-    return results
+        tasks = [client.blog_post(httpx_client) for client in clients.values()]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+    return [
+        {"service": name, "result": result, "success": not isinstance(result, Exception)}
+        for name, result in zip(clients.keys(), results)
+    ]
 
 
 def append_csv(path: Path, data: dict) -> None:
@@ -138,32 +149,37 @@ def main():
             is_draft=DEBUG,  # デバッグ時は下書き
         )
         blogpost_results = asyncio.run(process_blogpost(blog_post_kwargs))
-        hatena_result = blogpost_results[0]
 
-        url = hatena_result.get("link_alternate", "")
-        url_edit = hatena_result.get("link_edit_user", "")
-        title = hatena_result.get("title", "")
-        content = hatena_result.get("content", "")
-        categories = hatena_result.get("categories", [])
+        # 結果の整理
+        hatena_result: HatenaResponseSchema = blogpost_results[0]["result"]
+        hatena_url = getattr(hatena_result, "url")
+        url_edit = getattr(hatena_result, "url_edit")
+        title = getattr(hatena_result, "title")
+        content = getattr(hatena_result, "content")
+        categories = getattr(hatena_result, "categories")
+        try:
+            qiita_url = getattr(blogpost_results[1].get("result"), "url")
+        except Exception:
+            qiita_url = None
 
-        logger.warning("はてなブログへの投稿に成功しました。")
-        logger.warning(f"URL: {url_edit}")
         print("-" * 50)
         print(f"投稿タイトル：{title}")
         print(f"\n{'-' * 20}投稿本文{'-' * 20}")
         print(f"{content[:100]}")
         print("-" * 50)
 
-        # LINE通知
-        if hatena_result["status_code"] == 201:
-            line_text = "投稿完了です。今日も長い時間お疲れさまでした！\n"
-            line_text = (
-                line_text
-                + f"タイトル：{title}\n確認: {url}\n編集: {url_edit}\n下書きモード: {hatena_result.get('is_draft')}"
-            )
+        # LINE通知テキスト整形
+        if qiita_url or hatena_url:
+            line_text = "投稿完了です。今日もお疲れさまでした！\n"
+            line_text += f"タイトル：{title}\n"
+            if qiita_url:
+                line_text += f"Qiita: {qiita_url}\n"
+            if hatena_url:
+                line_text += f"はてな: {hatena_url}\nはてな編集: {url_edit}\n"
+            line_text += f"下書きモード: {getattr(hatena_result, 'is_draft')}"
         else:
             line_text = "要約の保存完了。ブログ投稿は行われませんでした。今日も長い時間お疲れ様でした。\n"
-            line_text = line_text + f"タイトル：{title}\n本文: \n{content[:200]} ..."
+            line_text += f"本文: \n{content[:200]} ..."
 
         try:
             line_message.line_messenger(line_text, LINE_ACCESS_TOKEN)
@@ -188,8 +204,8 @@ def main():
             "timestamp": datetime.now().isoformat(),
             "conversation_title": conversation_titles,
             "AI_name": " ".join(ai_names),
-            "entry_URL": url,
-            "is_draft": hatena_result.get("is_draft"),
+            "entry_URL": hatena_url,
+            "is_draft": getattr(hatena_result, "is_draft"),
             "entry_title": title,
             "entry_content": content[:30],
             "categories": ",".join(categories),
@@ -211,7 +227,7 @@ def main():
 
         summary_file_name = datetime.now().strftime("%y%m%d") + "-" + title
 
-        csv_dir = Path(config["paths"]["output_dir"].strip())
+        csv_dir = Path(CONFIG["paths"]["output_dir"].strip())
         csv_dir.mkdir(exist_ok=True)
         csv_path = csv_dir / "record.csv"
         summary_dir = csv_dir / "summary"
@@ -223,7 +239,7 @@ def main():
 
         # Googleスプレッドシートへ出力
         if not DEBUG:
-            SPREADSHEET_NAME = config["google_sheets"].get("spreadsheet_name", "record").strip()
+            SPREADSHEET_NAME = CONFIG["google_sheets"].get("spreadsheet_name", "record").strip()
             try:
                 to_spreadsheet(csv_data, SPREADSHEET_NAME)
             except Exception as e:

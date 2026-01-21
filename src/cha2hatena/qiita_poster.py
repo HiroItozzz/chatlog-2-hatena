@@ -65,8 +65,9 @@ class QiitaPoster(AbstractBlogPoster):
         try:
             result = QiitaResponseSchema.model_validate_json(response.text)
             result.status_code = response.status_code
-            if result.status_code == 201:
-                logger.warning("Qiitaへの投稿完了")
+            if response.status_code == 201:
+                logger.warning("✓ Qiitaへ投稿成功")
+                logger.warning(f"URL: {result.url}")
         except ValidationError:
             logger.error(f"Qiita投稿処理でエラー。code:{response.status_code}")
             result = json.loads(response.text)

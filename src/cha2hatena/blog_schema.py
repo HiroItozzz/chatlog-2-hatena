@@ -23,18 +23,18 @@ class BlogClientSchema(BaseModel):
 
 
 class HatenaResponseSchema(BaseModel):
-    status_code: int
     # Atom名前空間の要素
     title: str
     author: str
     content: str
     time: datetime
-    link_edit: str
-    link_edit_user: str
-    link_alternate: str
+    url: str
+    url_edit: str
     categories: list[str]
     # app名前空間の要素
-    is_draft: str
+    is_draft: bool
+    status_code: int | None = None
+
 
 
 class QiitaTag(BaseModel):
