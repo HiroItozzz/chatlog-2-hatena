@@ -38,9 +38,10 @@ class ConversationalAi(ABC):
         self.api_key = config.api_key
         self.temperature = config.temperature
         self.company_name = "Google" if self.model.startswith("gemini") else "Deepseek"
-        STATEMENT = (
-            f"またその最後には、「この記事は {self.model} により自動生成されています」と目立つように注記してください。"
-        )
+        STATEMENT = ""
+
+        #    f"またその最後には、「この記事は {self.model} により自動生成されています」と目立つように注記してください。"
+
         self.prompt = config.prompt + STATEMENT + "\n\n" + config.conversation
 
     @abstractmethod

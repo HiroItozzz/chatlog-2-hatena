@@ -181,11 +181,14 @@ def main():
             line_text = "要約の保存完了。ブログ投稿は行われませんでした。今日も長い時間お疲れ様でした。\n"
             line_text += f"本文: \n{content[:200]} ..."
 
-        try:
-            line_message.line_messenger(line_text, LINE_ACCESS_TOKEN)
-        except Exception as e:
-            logger.error("エラー：LINE通知は行われませんでした。")
-            logger.info(f"詳細: {e}")
+        if DEBUG:
+            logger.info("デバッグモードのためLINE通知をスキップします")
+        else:
+            try:
+                line_message.line_messenger(line_text, LINE_ACCESS_TOKEN)
+            except Exception as e:
+                logger.error("エラー：LINE通知は行われませんでした。")
+                logger.info(f"詳細: {e}")
 
         # 為替レートを取得
         ticker = "USDJPY=X"
