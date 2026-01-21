@@ -19,7 +19,6 @@ ai:
 blog:
   preset_category:
     - 自動投稿
-    - AtomPub
 
 # ディレクトリ指定
 paths:
@@ -30,4 +29,4 @@ google_sheets:
   spreadsheet_name: record
 
 other:
-  debug: t
+  debug: f

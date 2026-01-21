@@ -11,11 +11,12 @@ import yfinance as yf
 
 from . import json_loader as jl
 from . import line_message
+from .blog_schema import BlogClientSchema, HatenaSecretKeys
 from .hatenablog_poster import HatenaBlogPoster
 from .llm import deepseek_client, gemini_client
 from .llm.conversational_ai import ConversationalAi, LlmConfig
+from .qiita_poster import QiitaPoster
 from .setup import initialization
-from .blog_schema import HatenaSecretKeys
 
 logger = logging.getLogger(__name__)
 parent_logger = logging.getLogger("cha2hatena")
@@ -26,11 +27,10 @@ except Exception as e:
     logger.critical(f"初期設定が正常に行われませんでした: {e}", exc_info=True)
     sys.exit(1)
 
-
 PRESET_CATEGORIES = config["blog"]["preset_category"]
-LINE_ACCESS_TOKEN = SECRET_KEYS.get("LINE_CHANNEL_ACCESS_TOKEN")
+LINE_ACCESS_TOKEN = SECRET_KEYS.get("line_channel_access_token")
 HATENA_SECRET_KEYS = HatenaSecretKeys.model_validate(SECRET_KEYS)
-
+QIITA_BEARER_TOKEN = SECRET_KEYS.get("qiita_bearer_token")
 
 ######################################################
 
@@ -46,11 +46,15 @@ def create_ai_client(config: LlmConfig):
     return client
 
 
-async def process_blogpost(**kwargs) -> list[dict]:
+async def process_blogpost(schema: BlogClientSchema) -> list[dict]:
     """複数のブログへ投稿 投稿結果を辞書のリストで返却"""
+
     async with httpx.AsyncClient() as httpx_client:
-        hatena_client = HatenaBlogPoster(**kwargs)
-        tasks = [hatena_client.blog_post(httpx_client)]
+        BLOG_LIST = {
+            "はてな": HatenaBlogPoster.model_validate(schema.model_dump()),
+            "Qiita": QiitaPoster.model_validate(schema.model_dump()),
+        }
+        tasks = [client.blog_post(httpx_client) for client in BLOG_LIST.values()]
         results = await asyncio.gather(*tasks)
     return results
 
@@ -124,15 +128,16 @@ def main():
         # AIで要約取得
         llm_outputs, llm_stats = ai_instance.get_summary()
 
-        blog_post_kwargs = {
+        blog_post_kwargs = BlogClientSchema(
             **llm_outputs,
-            "preset_categories": PRESET_CATEGORIES,
-            "hatena_secret_keys": HATENA_SECRET_KEYS,
-            "author": None,  # str | None   Noneの場合自分のはてなID
-            "updated": None,  # datetime | None  公開時刻設定。Noneの場合5分後に公開
-            "is_draft": DEBUG,  # デバッグ時は下書き
-        }
-        blogpost_results = asyncio.run(process_blogpost(**blog_post_kwargs))
+            preset_categories=PRESET_CATEGORIES,
+            hatena_secret_keys=HATENA_SECRET_KEYS.model_dump(by_alias=True),
+            qiita_bearer_token=QIITA_BEARER_TOKEN,
+            author=None,  # str | None   Noneの場合自分のはてなID
+            updated=None,  # datetime | None  公開時刻設定。Noneの場合5分後に公開
+            is_draft=DEBUG,  # デバッグ時は下書き
+        )
+        blogpost_results = asyncio.run(process_blogpost(blog_post_kwargs))
         hatena_result = blogpost_results[0]
 
         url = hatena_result.get("link_alternate", "")

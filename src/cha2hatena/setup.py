@@ -76,7 +76,8 @@ def config_setup() -> tuple[dict, dict]:
         "resource_owner_key": os.getenv("HATENA_ACCESS_TOKEN", ""),
         "resource_owner_secret": os.getenv("HATENA_ACCESS_TOKEN_SECRET", ""),
         "hatena_entry_url": os.getenv("HATENA_ENTRY_URL", ""),
-        "LINE_CHANNEL_ACCESS_TOKEN": os.getenv("LINE_CHANNEL_ACCESS_TOKEN", ""),
+        "line_channel_access_token": os.getenv("LINE_CHANNEL_ACCESS_TOKEN", ""),
+        "qiita_bearer_token": os.getenv("QIITA_BEARER_TOKEN")
     }
 
     # 設定の検証

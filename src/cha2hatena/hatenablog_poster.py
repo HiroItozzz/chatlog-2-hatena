@@ -5,7 +5,7 @@ from typing import Any
 
 import httpx
 from authlib.integrations.httpx_client import OAuth1Auth
-from pydantic import BaseModel, Field
+from pydantic import ConfigDict, Field
 
 from .blog_schema import AbstractBlogPoster, HatenaSecretKeys
 
@@ -24,12 +24,13 @@ def safe_find_attr(root: ET.Element, key: str, attr: str, ns: dict | None = None
     return elem.get(attr) if elem is not None else default
 
 
-class HatenaBlogPoster(BaseModel, AbstractBlogPoster):
+class HatenaBlogPoster(AbstractBlogPoster):
+
     title: str
     content: str
     categories: list
     preset_categories: list = []
-    secret_keys: HatenaSecretKeys = Field(alias="hatena_secret_keys", strict=True)
+    secret_keys: HatenaSecretKeys = Field(alias="hatena_secret_keys")
     author: str | None = None
     updated: datetime | None = None
     is_draft: bool = False

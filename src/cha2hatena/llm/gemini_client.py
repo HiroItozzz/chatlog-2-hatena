@@ -1,6 +1,6 @@
 import logging
 
-from .conversational_ai import BlogPost, ConversationalAi
+from .conversational_ai import AiOutput, ConversationalAi
 from .llm_stats import TokenStats
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class GeminiClient(ConversationalAi):
                     config=types.GenerateContentConfig(
                         temperature=self.temperature,
                         response_mime_type="application/json",  # 構造化出力
-                        response_json_schema=BlogPost.model_json_schema(),
+                        response_json_schema=AiOutput.model_json_schema(),
                     ),
                 )
                 print("Geminiによる要約を受け取りました。")

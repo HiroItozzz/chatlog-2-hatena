@@ -1,7 +1,7 @@
 import logging
 import sys
 
-from .conversational_ai import BlogPost, ConversationalAi, TokenStats
+from .conversational_ai import AiOutput, ConversationalAi, TokenStats
 
 logger = logging.getLogger(__name__)
 
@@ -10,7 +10,7 @@ class DeepseekClient(ConversationalAi):
     def get_summary(self) -> tuple[dict, TokenStats]:
         from openai import OpenAI
 
-        statement = f"次の行から示すプロンプトはこのPydanticモデルに合うJSONで出力してください: {BlogPost.model_json_schema()}\n"
+        statement = f"次の行から示すプロンプトはこのPydanticモデルに合うJSONで出力してください: {AiOutput.model_json_schema()}\n"
         self.prompt = statement + self.prompt
 
         logger.warning("Deepseekからの応答を待っています。")

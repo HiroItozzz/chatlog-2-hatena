@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List
 
 from pydantic import BaseModel, Field
+
 from .llm_stats import TokenStats
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ class LlmConfig(BaseModel):
 # llm_stats = {input_tokens:, thoughts_tokens:, output_tokens:}
 
 
-class BlogPost(BaseModel):
+class AiOutput(BaseModel):
     title: str = Field(description="ブログのタイトル。")
     content: str = Field(description="ブログの本文（マークダウン形式）。")
     categories: List[str] = Field(description="カテゴリー一覧", max_length=4)
