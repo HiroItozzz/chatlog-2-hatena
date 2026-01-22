@@ -2,10 +2,10 @@ import logging
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from typing import Any
-
+from pydantic import Field
+from ..setup import DEBUG
 import httpx
 from authlib.integrations.httpx_client import OAuth1Auth
-from pydantic import Field
 
 from .blog_schema import AbstractBlogPoster, HatenaResponseSchema, HatenaSecretKeys
 
@@ -29,7 +29,7 @@ class HatenaBlogPoster(AbstractBlogPoster):
     content: str
     categories: list
     preset_categories: list = []
-    secret_keys: HatenaSecretKeys = Field(alias="hatena_secret_keys")
+    hatena_secret_keys: HatenaSecretKeys = Field(exclude=True)
     author: str | None = None
     updated: datetime | None = None
     is_draft: bool = False
@@ -83,9 +83,9 @@ class HatenaBlogPoster(AbstractBlogPoster):
     async def hatena_oauth(self, xml_str: str, httpx_client: httpx.AsyncClient) -> dict:
         """はてなブログへ投稿"""
 
-        URL = self.secret_keys.model_dump().get("hatena_entry_url")
+        URL = self.hatena_secret_keys.hatena_entry_url
         auth = OAuth1Auth(
-            **self.secret_keys.get_auth_params(),
+            **self.hatena_secret_keys.get_auth_params(),
             force_include_body=True,  # ← これを追加
         )
         response = await httpx_client.post(
@@ -112,8 +112,8 @@ class HatenaBlogPoster(AbstractBlogPoster):
             term = category_elem.get("term", "")
             if term:
                 categories.append(term)
-        link_edit = safe_find_attr(root, "atom:link[@rel='edit']", "href", NS)
-        link_edit_user = str(link_edit).replace("atom/entry/", "edit?entry=")
+        link_edit_api = safe_find_attr(root, "atom:link[@rel='edit']", "href", NS)
+        link_edit_user = str(link_edit_api).replace("atom/entry/", "edit?entry=")
 
         result = HatenaResponseSchema(
             status_code=response.status_code,

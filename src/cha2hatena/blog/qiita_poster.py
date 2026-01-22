@@ -5,6 +5,7 @@ from typing import ClassVar
 from httpx import AsyncClient, Response
 from pydantic import Field, ValidationError, computed_field, field_serializer
 
+from ..setup import DEBUG
 from .blog_schema import AbstractBlogPoster, QiitaResponseSchema, QiitaTag
 
 logger = logging.getLogger(__name__)
@@ -43,25 +44,23 @@ class QiitaPoster(AbstractBlogPoster):
 
     # ---
 
-    async def blog_post(self, httpx_client: AsyncClient) -> dict:
+    async def blog_post(self, httpx_client: AsyncClient) -> QiitaResponseSchema:
         response = await self.qiita_auth(httpx_client)
+        
         return self.parse_response(response)
 
     async def qiita_auth(self, httpx_client: AsyncClient) -> Response:
-        logger.debug("Qiitaへのリクエスト開始...")
-        logger.debug(f"パラメータ: {self}")
-        logger.debug(f"model_dumpの結果：{self.model_dump()}")
+        logger.warning("Qiitaへのリクエスト開始...")
+        logger.debug(f"パラメータ: {self.model_dump()}")
         response = await httpx_client.post(
             url=self.entry_point,
             json=self.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {self.access_token}", "Content-Type": "application/json"},
         )
-        print(response.text)
-        response.raise_for_status()
         return response
 
     @staticmethod
-    def parse_response(response: Response) -> dict:
+    def parse_response(response: Response) -> QiitaResponseSchema:
         try:
             result = QiitaResponseSchema.model_validate_json(response.text)
             result.status_code = response.status_code
@@ -73,4 +72,3 @@ class QiitaPoster(AbstractBlogPoster):
             result = json.loads(response.text)
             result["status_code"] = response.status_code
         return result
-

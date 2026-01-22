@@ -4,7 +4,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from cha2hatena.hatenablog_poster import hatena_oauth, parse_response, xml_unparser
+from cha2hatena.blog.hatenablog_poster import hatena_oauth, parse_response, xml_unparser
 
 
 def test_uploader():

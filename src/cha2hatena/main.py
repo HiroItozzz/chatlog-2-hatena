@@ -11,28 +11,31 @@ import yfinance as yf
 
 from . import json_loader as jl
 from . import line_message
-from .blog_schema import BlogClientSchema, HatenaResponseSchema, HatenaSecretKeys
-from .hatenablog_poster import HatenaBlogPoster
+from .blog.blog_schema import (
+    AbstractBlogPoster,
+    BaseBlogResponse,
+    BlogClientSchema,
+    HatenaResponseSchema,
+    HatenaSecretKeys,
+)
+from .blog.devto_poster import DevToPoster
+from .blog.hatenablog_poster import HatenaBlogPoster
+from .blog.qiita_poster import QiitaPoster
 from .llm import deepseek_client, gemini_client
 from .llm.conversational_ai import ConversationalAi, LlmConfig
-from .qiita_poster import QiitaPoster
 from .setup import initialization
+from .types import BlogServices, TypeBlogResult
 
 logger = logging.getLogger(__name__)
 parent_logger = logging.getLogger("cha2hatena")
 
 try:
-    DEBUG, SECRET_KEYS, LLM_CONFIG, CONFIG = initialization(parent_logger)
+    DEBUG, secret_keys, llm_config, CONFIG = initialization(parent_logger)
 except Exception as e:
     logger.critical(f"初期設定が正常に行われませんでした: {e}", exc_info=True)
     sys.exit(1)
 
-PRESET_CATEGORIES = CONFIG["blog"]["preset_category"]
-LINE_ACCESS_TOKEN = SECRET_KEYS.get("line_channel_access_token")
-HATENA_SECRET_KEYS = HatenaSecretKeys.model_validate(SECRET_KEYS)
-QIITA_BEARER_TOKEN = SECRET_KEYS.get("qiita_bearer_token")
-
-######################################################
+# -------
 
 
 def create_ai_client(config: LlmConfig):
@@ -46,28 +49,25 @@ def create_ai_client(config: LlmConfig):
     return client
 
 
-async def process_blogpost(schema: BlogClientSchema) -> list[dict]:
+async def process_blogpost(schema: BlogClientSchema) -> TypeBlogResult:
     """複数のブログへ投稿 投稿結果を辞書のリストで返却"""
-    BLOG_CLIENTS = []
+    BLOG_CLIENTS: list[tuple[BlogServices, AbstractBlogPoster]] = []
     if schema.hatena_secret_keys:
-        BLOG_CLIENTS.append(("はてな", HatenaBlogPoster))
-    if schema.qiita_bearer_token and (CONFIG.get("blog") or {}).get("qiita"):
-        BLOG_CLIENTS.append(("Qiita", QiitaPoster))
-        # 将来的に追加
-        # if schema.note_access_token:
-        #     BLOG_CLIENTS.append(("note", NotePoster))
-        # if schema.devto_api_key:
-        #     BLOG_CLIENTS.append(("Dev.to", DevtoPoster))
+        BLOG_CLIENTS.append((BlogServices.HATENA, HatenaBlogPoster))
+    if schema.qiita_bearer_token:
+        BLOG_CLIENTS.append((BlogServices.QIITA, QiitaPoster))
+    if schema.devto_api_key:
+        BLOG_CLIENTS.append((BlogServices.DEVTO, DevToPoster))
 
     clients = {name: client_class.model_validate(schema.model_dump()) for name, client_class in BLOG_CLIENTS}
 
     async with httpx.AsyncClient() as httpx_client:
         tasks = [client.blog_post(httpx_client) for client in clients.values()]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-    return [
-        {"service": name, "result": result, "success": not isinstance(result, Exception)}
+        results: BaseBlogResponse | BaseException = await asyncio.gather(*tasks, return_exceptions=True)
+    return {
+        name: {"result": result, "success": not isinstance(result, BaseException)}
         for name, result in zip(clients.keys(), results)
-    ]
+    }
 
 
 def append_csv(path: Path, data: dict) -> None:
@@ -131,64 +131,74 @@ def main():
         input_paths = list(map(Path, INPUT_PATHS_RAW))
 
         # JSONファイルから会話履歴を読み込み、テキストに整形
-        LLM_CONFIG.conversation = jl.json_loader(input_paths)
+        llm_config.conversation = jl.json_loader(input_paths)
 
         # AIオブジェクト作成
-        ai_instance: ConversationalAi = create_ai_client(LLM_CONFIG)
+        ai_instance: ConversationalAi = create_ai_client(llm_config)
 
         # AIで要約取得
         llm_outputs, llm_stats = ai_instance.get_summary()
 
+        #
         blog_post_kwargs = BlogClientSchema(
             **llm_outputs,
-            preset_categories=PRESET_CATEGORIES,
-            hatena_secret_keys=HATENA_SECRET_KEYS.model_dump(by_alias=True),
-            qiita_bearer_token=QIITA_BEARER_TOKEN,
+            preset_categories=(CONFIG.get("blog") or {}).get("preset_category", []),
+            hatena_secret_keys=HatenaSecretKeys.model_validate(secret_keys),
+            qiita_bearer_token=secret_keys.get("qiita_bearer_token"),
+            devto_api_key=secret_keys.get("devto_api_key"),
             author=None,  # str | None   Noneの場合自分のはてなID
             updated=None,  # datetime | None  公開時刻設定。Noneの場合5分後に公開
             is_draft=DEBUG,  # デバッグ時は下書き
         )
-        blogpost_results = asyncio.run(process_blogpost(blog_post_kwargs))
+        blogpost_results: TypeBlogResult = asyncio.run(process_blogpost(blog_post_kwargs))
 
         # 結果の整理
-        hatena_result: HatenaResponseSchema = blogpost_results[0]["result"]
-        hatena_url = getattr(hatena_result, "url")
-        url_edit = getattr(hatena_result, "url_edit")
-        title = getattr(hatena_result, "title")
-        content = getattr(hatena_result, "content")
-        categories = getattr(hatena_result, "categories")
-        try:
-            qiita_url = getattr(blogpost_results[1].get("result"), "url")
-        except Exception:
-            qiita_url = None
+        urls = {}
+        hatena_error = False
+        for service, report in blogpost_results.items():
+            _result: BaseBlogResponse | BaseException = report["result"]
+            if isinstance(_result, BaseBlogResponse):
+                urls[service] = _result.url
+
+                if service is BlogServices.HATENA:
+                    hatena_result: HatenaResponseSchema = _result
+            else:
+                logger.error(f"{service.value}の処理でエラー。投稿されませんでした。エラー内容:\n{_result}")
+                hatena_error = service is BlogServices.HATENA
+
+        if hatena_error:
+            logger.error("はてな投稿エラーのため実行を中止します。")
+            logger.error(
+                f"Qiita URL:{urls.get(BlogServices.QIITA, '')}\nDev.to URL: {urls.get(BlogServices.DEVTO, '')})"
+            )
 
         print("-" * 50)
-        print(f"投稿タイトル：{title}")
+        print(f"投稿タイトル：{hatena_result.title}")
         print(f"\n{'-' * 20}投稿本文{'-' * 20}")
-        print(f"{content[:100]}")
+        print(f"{hatena_result.content[:100]}")
         print("-" * 50)
 
         # LINE通知テキスト整形
-        if qiita_url or hatena_url:
-            line_text = "投稿完了です。今日もお疲れさまでした！\n"
-            line_text += f"タイトル：{title}\n"
-            if qiita_url:
-                line_text += f"Qiita: {qiita_url}\n"
-            if hatena_url:
-                line_text += f"はてな: {hatena_url}\nはてな編集: {url_edit}\n"
-            line_text += f"下書きモード: {getattr(hatena_result, 'is_draft')}"
-        else:
-            line_text = "要約の保存完了。ブログ投稿は行われませんでした。今日も長い時間お疲れ様でした。\n"
-            line_text += f"本文: \n{content[:200]} ..."
 
-        if DEBUG:
-            logger.info("デバッグモードのためLINE通知をスキップします")
-        else:
+        line_access_token = secret_keys.get("line_channel_access_token")
+        if line_access_token:
+            line_text = "投稿完了です。今日もお疲れさまでした！\n"
+            line_text += f"タイトル：{hatena_result.title}\n"
+            for name, url in urls.items():
+                line_text += f"{name}: {url}\n" if url else ""
+                
+            line_text += f"はてな編集: {hatena_result.url_edit}\n"
+            line_text += f"下書きモード: {hatena_result.is_draft}"
+
             try:
-                line_message.line_messenger(line_text, LINE_ACCESS_TOKEN)
+                line_message.line_messenger(line_text, line_access_token)
             except Exception as e:
                 logger.error("エラー：LINE通知は行われませんでした。")
                 logger.info(f"詳細: {e}")
+        else:
+            line_text = "要約の保存完了。ブログ投稿は行われませんでした。今日も長い時間お疲れ様でした。\n"
+            line_text += f"本文: \n{hatena_result.content[:200]} ..."
+
 
         # 為替レートを取得
         ticker = "USDJPY=X"
@@ -207,14 +217,14 @@ def main():
             "timestamp": datetime.now().isoformat(),
             "conversation_title": conversation_titles,
             "AI_name": " ".join(ai_names),
-            "entry_URL": hatena_url,
-            "is_draft": getattr(hatena_result, "is_draft"),
-            "entry_title": title,
-            "entry_content": content[:30],
-            "categories": ",".join(categories),
-            "prompt": LLM_CONFIG.prompt[:20],
-            "model": LLM_CONFIG.model,
-            "temperature": LLM_CONFIG.temperature,
+            "entry_URL": hatena_result.url,
+            "is_draft": hatena_result.is_draft,
+            "entry_title": hatena_result.title,
+            "entry_content": hatena_result.content[:30],
+            "categories": ",".join(hatena_result.categories),
+            "prompt": llm_config.prompt[:20],
+            "model": llm_config.model,
+            "temperature": llm_config.temperature,
             "input_letter_count": llm_stats.input_letter_count,
             "output_letter_count": llm_stats.output_letter_count,
             "input_tokens": llm_stats.input_tokens,
@@ -225,10 +235,12 @@ def main():
             "output_fee": llm_stats.output_fee,
             "total_fee (USD)": llm_stats.total_fee,
             "total_fee (JPY)": total_JPY,
-            "api_key": "..." + LLM_CONFIG.api_key[-5:],
+            "api_key": "..." + llm_config.api_key[-5:],
+            "Qiita_URL": urls.get(BlogServices.QIITA, ""),
+            "Dev.to_URL": urls.get(BlogServices.DEVTO, ""),
         }
 
-        summary_file_name = datetime.now().strftime("%y%m%d") + "-" + title
+        summary_file_name = datetime.now().strftime("%y%m%d") + "-" + hatena_result.title
 
         csv_dir = Path(CONFIG["paths"]["output_dir"].strip())
         csv_dir.mkdir(exist_ok=True)
@@ -238,18 +250,18 @@ def main():
         summary_path = summary_dir / (f"{summary_file_name.replace('/', ', ')}.txt")
         # ファイル出力
         append_csv(csv_path, csv_data)
-        summary_path.write_text(content, encoding="utf-8")
+        summary_path.write_text(hatena_result.content, encoding="utf-8")
 
         # Googleスプレッドシートへ出力
-        if not DEBUG:
-            SPREADSHEET_NAME = CONFIG["google_sheets"].get("spreadsheet_name", "record").strip()
+        if not DEBUG and (CONFIG.get("google_sheets") or {}).get("enable"):
+            SPREADSHEET_NAME = (CONFIG.get("google_sheets") or {}).get("spreadsheet_name", "record")
             try:
                 to_spreadsheet(csv_data, SPREADSHEET_NAME)
             except Exception as e:
                 logger.warning("Googleスプレッドシートへの書き込みは行われませんでした")
                 logger.debug(f"詳細: {e}")
-        logger.info("処理が正常に終了しました。")
 
+        logger.info("処理が正常に終了しました。")
         return 0
 
     except Exception:

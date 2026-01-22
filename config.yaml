@@ -17,9 +17,13 @@ ai:
   max_len_content: 1500 # （未実装）Geminiが返すはてなブログ本文の最大文字数
 
 blog:
-  qiita: t # Qiita投稿設定
+  qiita: false # Qiita投稿設定
+  devto: false # Dev.to投稿設定
   preset_category:
     - 自動投稿
+
+notification:
+  line: true # LINE通知設定
 
 # ディレクトリ指定
 paths:
@@ -27,6 +31,7 @@ paths:
   output_dir: "outputs"
 
 google_sheets:
+  enable: true
   spreadsheet_name: record
 
 other:

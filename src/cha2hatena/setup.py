@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+from functools import lru_cache
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -24,9 +25,9 @@ def config_validation(config_dict: dict, secret_keys: dict) -> tuple[dict, dict]
 
     # API_KEYの検証
     for idx, (name, secret_key) in enumerate(secret_keys.items()):
-        if len(secret_key.strip()) == 0 or secret_key.strip().lower().startswith("your"):
+        if len(secret_key or "") == 0 or (secret_key or "").strip().lower().startswith("your"):
             if idx == 0:
-                raise ValueError(f"{name}が見つかりませんでした。.envでキーを設定する必要があります。")
+                logger.warning(f"{name}が見つかりませんでした。.envでキーを設定する必要があります。")
             elif 0 < idx <= 2:
                 logger.warning(f"{name}が見つかりませんでした。Geminiによる要約を試みます。")
                 break
@@ -42,11 +43,9 @@ def config_validation(config_dict: dict, secret_keys: dict) -> tuple[dict, dict]
     return config_dict, secret_keys
 
 
-def config_setup() -> tuple[dict, dict]:
-    """設定の初期化と検証"""
-
+@lru_cache
+def get_yaml_config():
     config_path = Path("config.yaml")
-
     # 設定ファイルの読み込みとエラーハンドリング
     try:
         if not config_path.exists():
@@ -56,6 +55,12 @@ def config_setup() -> tuple[dict, dict]:
             raise ValueError("Config file is empty or invalid YAML")
     except yaml.YAMLError as e:
         raise ValueError(f"Invalid YAML syntax in config file: {e}")
+    return config
+
+
+def config_setup() -> tuple[dict, dict]:
+    """設定の初期化と検証"""
+    config = get_yaml_config()
 
     try:
         model = config["ai"]["model"]
@@ -71,13 +76,14 @@ def config_setup() -> tuple[dict, dict]:
 
     secret_keys = {
         "API_KEY": api_key,
-        "client_key": os.getenv("HATENA_CONSUMER_KEY", ""),
-        "client_secret": os.getenv("HATENA_CONSUMER_SECRET", ""),
-        "resource_owner_key": os.getenv("HATENA_ACCESS_TOKEN", ""),
-        "resource_owner_secret": os.getenv("HATENA_ACCESS_TOKEN_SECRET", ""),
+        "hatena_client_key": os.getenv("HATENA_CONSUMER_KEY", ""),
+        "hatena_client_secret": os.getenv("HATENA_CONSUMER_SECRET", ""),
+        "hatena_resource_owner_key": os.getenv("HATENA_ACCESS_TOKEN", ""),
+        "hatena_resource_owner_secret": os.getenv("HATENA_ACCESS_TOKEN_SECRET", ""),
         "hatena_entry_url": os.getenv("HATENA_ENTRY_URL", ""),
         "line_channel_access_token": os.getenv("LINE_CHANNEL_ACCESS_TOKEN", ""),
-        "qiita_bearer_token": os.getenv("QIITA_BEARER_TOKEN")
+        "qiita_bearer_token": os.getenv("QIITA_BEARER_TOKEN") if (config.get("blog") or {}).get("qiita") else None,
+        "devto_api_key": os.getenv("DEVTO_API_KEY") if (config.get("blog") or {}).get("devto") else None,
     }
 
     # 設定の検証
@@ -93,9 +99,12 @@ def log_setup(logger: logging.Logger, initial_level: int, console_format: str) -
     stream_handler.setFormatter(logging.Formatter(console_format))
     stream_handler.setLevel(initial_level)
     file_handler = RotatingFileHandler("app.log", maxBytes=int(0.5 * 1024 * 1024), backupCount=1, encoding="utf-8")
-    file_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s"))
+    file_handler.setFormatter(
+        logging.Formatter(
+            "%(levelname)s | %(asctime)s | %(module)s | %(lineno)s | %(funcName)s | %(taskName)s | %(name)s | %(message)s"
+        )
+    )
     file_handler.setLevel(logging.DEBUG)
-
     logger.setLevel(logging.DEBUG)
     logger.addHandler(file_handler)
     logger.addHandler(stream_handler)
@@ -131,10 +140,22 @@ def initialization(logger: logging.Logger) -> tuple:
     )
 
     # DEBUGモード・ログレベル判定
-    DEBUG_CONFIG = config.get("other", {}).get("debug").lower() in ("true", "1", "t")
+    DEBUG_CONFIG = (config.get("other") or {}).get("debug", "").lower() in ("true", "1", "t")
     DEBUG = DEBUG_ENV if DEBUG_ENV else DEBUG_CONFIG
     if DEBUG and not DEBUG_ENV:
         stream_handler.setLevel(logging.DEBUG)
         stream_handler.setFormatter(logging.Formatter("%(levelname)s - %(name)s - %(message)s"))
 
     return DEBUG, secret_keys, llm_config, config
+
+
+# ユーティリティ関数
+def get_DEBUG(config=get_yaml_config()):
+    """DEBUGモード取得用関数"""
+    debug = (config.get("other") or {}).get("debug", "").lower() in ("true", "1", "t")
+    debug_env = os.getenv("DEBUG", "False").lower() in ("true", "t", "1")
+    debug = debug_env if debug_env else debug
+    return debug
+
+
+DEBUG = get_DEBUG()
