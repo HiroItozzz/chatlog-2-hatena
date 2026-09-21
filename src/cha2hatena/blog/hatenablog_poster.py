@@ -2,11 +2,12 @@ import logging
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from typing import Any
-from pydantic import Field
-from ..setup import DEBUG
+
 import httpx
 from authlib.integrations.httpx_client import OAuth1Auth
+from pydantic import Field
 
+from ..setup import DEBUG
 from .blog_schema import AbstractBlogPoster, HatenaResponseSchema, HatenaSecretKeys
 
 logger = logging.getLogger(__name__)
@@ -84,15 +85,18 @@ class HatenaBlogPoster(AbstractBlogPoster):
         """はてなブログへ投稿"""
 
         URL = self.hatena_secret_keys.hatena_entry_url
-        auth = OAuth1Auth(
-            **self.hatena_secret_keys.get_auth_params(),
-            force_include_body=True,  # ← これを追加
-        )
-        response = await httpx_client.post(
-            URL, auth=auth, content=xml_str, headers={"Content-Type": "application/xml; charset=utf-8"}
-        )
-
-        logger.debug(f"Status: {response.status_code}")
+        try:
+            auth = OAuth1Auth(
+                **self.hatena_secret_keys.get_auth_params(),
+                force_include_body=True,  # ← これを追加
+            )
+            response = await httpx_client.post(
+                URL, auth=auth, content=xml_str, headers={"Content-Type": "application/xml; charset=utf-8"}
+            )
+            logger.debug(f"Status: {response.status_code}")
+        except Exception:
+            logger.exception("✗ OAuth認証中にエラーが発生しました。")
+            raise
         if response.status_code == 201:
             logger.warning("✓ はてなブログへ投稿成功")
         else:

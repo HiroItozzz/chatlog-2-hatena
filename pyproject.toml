@@ -18,16 +18,24 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP",
 ]
 dependencies = [
-    "httpx",
-    "requests-oauthlib",
-    "google-genai",
-    "pyyaml",
-    "yfinance",
-    "pydantic",
-    "python-dotenv",
-    "Openai",
-    "gspread",
-    "authlib"
+    "authlib>=1.8.0",
+    "google-genai>=2.24.0",
+    "gspread>=6.2.1",
+    "httpx>=0.28.1",
+    "openai<3",  # openaiのバージョン3はhttpx2依存があり、authlibはhttpx2を優先使用し壊れるため指定
+    "pydantic>=2.13.5",
+    "python-dotenv>=1.2.3",
+    "pyyaml>=6.0.3",
+    "requests-oauthlib>=2.0.0",
+    "yfinance>=1.7.0",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=2.3.1",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.16.8",
 ]
 
 [project.urls]
@@ -36,14 +44,6 @@ Repository = "https://github.com/HiroItozzz/chatlog-2-hatena.git"
 [build-system]
 requires = ["setuptools >= 77.0.3"]
 build-backend = "setuptools.build_meta"
-
-
-[project.optional-dependencies]
-dev = [
-    "pytest",
-    "ruff",
-    "mypy",
-]
 
 [project.scripts]
 cha2hatena = "cha2hatena.main:main"
