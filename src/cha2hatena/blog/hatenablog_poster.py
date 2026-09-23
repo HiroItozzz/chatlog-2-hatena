@@ -8,7 +8,7 @@ from authlib.integrations.httpx_client import OAuth1Auth
 from pydantic import Field
 
 from ..setup import DEBUG
-from .blog_schema import AbstractBlogPoster, HatenaResponseSchema, HatenaSecretKeys
+from .schema import AbstractBlogPoster, HatenaResponseSchema, HatenaSecretKeys
 
 logger = logging.getLogger(__name__)
 

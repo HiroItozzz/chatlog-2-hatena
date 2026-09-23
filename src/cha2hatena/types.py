@@ -1,7 +1,7 @@
 from enum import StrEnum
 from typing import TypeAlias, TypedDict
 
-from .blog.blog_schema import BaseBlogResponse
+from .blog.schema import BaseBlogResponse
 
 
 class BlogServices(StrEnum):

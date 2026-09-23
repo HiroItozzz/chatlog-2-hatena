@@ -6,7 +6,7 @@ from httpx import AsyncClient, Response
 from pydantic import Field, ValidationError, computed_field, field_serializer
 
 from ..setup import DEBUG
-from .blog_schema import AbstractBlogPoster, QiitaResponseSchema, QiitaTag
+from .schema import AbstractBlogPoster, QiitaResponseSchema, QiitaTag
 
 logger = logging.getLogger(__name__)
 

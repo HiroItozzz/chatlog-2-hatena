@@ -5,7 +5,7 @@ import json
 from httpx import AsyncClient, Response
 from pydantic import Field, ValidationError
 
-from .blog_schema import AbstractBlogPoster, DevToResponseSchema
+from .schema import AbstractBlogPoster, DevToResponseSchema
 
 logger = logging.getLogger(__name__)
 

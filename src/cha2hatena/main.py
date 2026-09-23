@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import asyncio
 import csv
 import logging
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import gspread
 import httpx
@@ -11,20 +14,21 @@ import yfinance as yf
 
 from . import json_loader as jl
 from . import line_message
-from .blog.blog_schema import (
-    AbstractBlogPoster,
+from .blog import DevToPoster, HatenaBlogPoster, QiitaPoster
+from .blog.schema import (
     BaseBlogResponse,
     BlogClientSchema,
     HatenaResponseSchema,
     HatenaSecretKeys,
 )
-from .blog.devto_poster import DevToPoster
-from .blog.hatenablog_poster import HatenaBlogPoster
-from .blog.qiita_poster import QiitaPoster
-from .llm import deepseek_client, gemini_client
-from .llm.conversational_ai import ConversationalAi, LlmConfig
+from .llm import DeepseekClient, GeminiClient, LlmConfig
 from .setup import initialization
 from .types import BlogServices, TypeBlogResult
+
+if TYPE_CHECKING:
+    from .blog.schema import AbstractBlogPoster
+    from .llm import ConversationalAi
+
 
 logger = logging.getLogger(__name__)
 parent_logger = logging.getLogger("cha2hatena")
@@ -38,11 +42,11 @@ except Exception as e:
 # -------
 
 
-def create_ai_client(config: LlmConfig):
+def create_ai_client(config: LlmConfig) -> ConversationalAi:
     if config.model.startswith("gemini"):
-        client = gemini_client.GeminiClient(config)
+        client = GeminiClient(config)
     elif config.model.startswith("deepseek"):
-        client = deepseek_client.DeepseekClient(config)
+        client = DeepseekClient(config)
     else:
         logger.error("モデル名が正しくありません。実行を中止します。")
         logger.error(f"モデル名: {config.model}")
@@ -186,7 +190,7 @@ def main():
             line_text += f"タイトル：{hatena_result.title}\n"
             for name, url in urls.items():
                 line_text += f"{name}: {url}\n" if url else ""
-                
+
             line_text += f"はてな編集: {hatena_result.url_edit}\n"
             line_text += f"下書きモード: {hatena_result.is_draft}"
 
@@ -198,7 +202,6 @@ def main():
         else:
             line_text = "要約の保存完了。ブログ投稿は行われませんでした。今日も長い時間お疲れ様でした。\n"
             line_text += f"本文: \n{hatena_result.content[:200]} ..."
-
 
         # 為替レートを取得
         ticker = "USDJPY=X"
