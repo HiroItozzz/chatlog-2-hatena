@@ -12,7 +12,6 @@ import gspread
 import httpx
 import yfinance as yf
 
-from . import json_loader as jl
 from . import line_message
 from .blog import DevToPoster, HatenaBlogPoster, QiitaPoster
 from .blog.schema import (
@@ -21,6 +20,7 @@ from .blog.schema import (
     HatenaResponseSchema,
     HatenaSecretKeys,
 )
+from .json_loader import ExtentionExporterLoader
 from .llm import DeepseekClient, GeminiClient, LlmConfig
 from .setup import initialization
 from .types import BlogServices, TypeBlogResult
@@ -44,13 +44,10 @@ except Exception as e:
 
 def create_ai_client(config: LlmConfig) -> ConversationalAi:
     if config.model.startswith("gemini"):
-        client = GeminiClient(config)
-    elif config.model.startswith("deepseek"):
-        client = DeepseekClient(config)
-    else:
-        logger.error("モデル名が正しくありません。実行を中止します。")
-        logger.error(f"モデル名: {config.model}")
-    return client
+        return GeminiClient(config)
+    if config.model.startswith("deepseek"):
+        return DeepseekClient(config)
+    raise ValueError(f"対応していないモデル: {config.model}")
 
 
 async def process_blogpost(schema: BlogClientSchema) -> TypeBlogResult:
@@ -135,7 +132,8 @@ def main():
         input_paths = list(map(Path, INPUT_PATHS_RAW))
 
         # JSONファイルから会話履歴を読み込み、テキストに整形
-        llm_config.conversation = jl.json_loader(input_paths)
+        loader = ExtentionExporterLoader(input_paths)
+        llm_config.conversation = loader.load()
 
         # AIオブジェクト作成
         ai_instance: ConversationalAi = create_ai_client(llm_config)
@@ -213,13 +211,10 @@ def main():
             logger.info(f"詳細: {e}", exc_info=True)
             total_JPY = None
 
-        ai_names = jl.ai_names_from_paths(input_paths)
-        conversation_titles = " ".join(jl.get_conversation_titles(input_paths, ai_names))
-
         csv_data = {
             "timestamp": datetime.now().isoformat(),
-            "conversation_title": conversation_titles,
-            "AI_name": " ".join(ai_names),
+            "conversation_title": loader.conversation_title,
+            "AI_name": loader.ai_name,
             "entry_URL": hatena_result.url,
             "is_draft": hatena_result.is_draft,
             "entry_title": hatena_result.title,

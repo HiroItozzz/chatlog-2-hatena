@@ -15,7 +15,8 @@ SAMPLE_DIR = Path(__file__).parent.parent / "sample"
 
 
 def load(paths: list[Path]) -> str:
-    return jl.json_loader(paths)
+    loader = jl.ExtentionExporterLoader(paths)
+    return loader.load()
 
 
 def write_json(path: Path, messages: list[dict]) -> Path:
